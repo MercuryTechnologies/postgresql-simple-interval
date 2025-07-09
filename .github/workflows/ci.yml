@@ -87,6 +87,7 @@ jobs:
           path: artifact.tar
       - run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
     strategy:
+      fail-fast: false
       matrix:
         include:
           - ghc: 9.12
