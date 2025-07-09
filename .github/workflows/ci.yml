@@ -92,7 +92,7 @@ jobs:
       matrix:
         include:
           - ghc: 9.12
-            os: macos-latest
+            os: macos-13
           - ghc: 9.12
             os: macos-latest
           - ghc: 9.8
