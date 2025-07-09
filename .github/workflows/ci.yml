@@ -78,6 +78,8 @@ jobs:
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
       - run: cabal build --only-download
       - uses: ikalnytskyi/action-setup-postgres@v7
+      - if: ${{ matrix.os }} == 'windows-latest'
+        run: choco install pkgconfiglite
       - run: cabal build --only-dependencies
       - run: cabal build
       - run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
