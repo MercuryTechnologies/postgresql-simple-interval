@@ -77,6 +77,7 @@ jobs:
           path: ~/.local/state/cabal
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
       - run: cabal build --only-download
+      - uses: ikalnytskyi/action-setup-postgres@v7
       - run: cabal build --only-dependencies
       - run: cabal build
       - run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
@@ -87,10 +88,11 @@ jobs:
           path: artifact.tar
       - run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
     strategy:
+      fail-fast: false
       matrix:
         include:
           - ghc: 9.12
-            os: macos-latest
+            os: macos-13
           - ghc: 9.12
             os: macos-latest
           - ghc: 9.8
@@ -99,8 +101,6 @@ jobs:
             os: ubuntu-latest
           - ghc: 9.12
             os: ubuntu-latest
-          - ghc: 9.12
-            os: windows-latest
   release:
     if: ${{ github.event_name == 'release' }}
     name: Release
