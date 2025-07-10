@@ -38,11 +38,14 @@ common library
     -Wno-safe
     -Wno-unsafe
 
-  if impl(ghc >8.8)
+  if impl(ghc >=8.10)
     ghc-options:
-      -Wno-missing-kind-signatures
       -Wno-missing-safe-haskell-mode
       -Wno-prepositive-qualified-module
+
+  if impl(ghc >=9.2)
+    ghc-options:
+      -Wno-missing-kind-signatures
 
   if flag(pedantic)
     ghc-options: -Werror
