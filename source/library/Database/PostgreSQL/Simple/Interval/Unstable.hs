@@ -2,7 +2,7 @@
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Database.PostgreSQL.Interval.Unstable where
+module Database.PostgreSQL.Simple.Interval.Unstable where
 
 import qualified Control.Applicative as Applicative
 import qualified Control.Monad as Monad
