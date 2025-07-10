@@ -88,13 +88,27 @@ jobs:
           path: artifact.tar
       - run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
     strategy:
-      fail-fast: false
+      fail-fast: false # TODO
       matrix:
         include:
           - ghc: 9.12
             os: macos-13
           - ghc: 9.12
             os: macos-latest
+          - ghc: 8.8
+            os: ubuntu-latest
+          - ghc: 8.10
+            os: ubuntu-latest
+          - ghc: 9.0
+            os: ubuntu-latest
+          - ghc: 9.2
+            os: ubuntu-latest
+          - ghc: 9.4
+            os: ubuntu-latest
+          - ghc: 9.6
+            os: ubuntu-latest
+          - ghc: 9.8
+            os: ubuntu-latest
           - ghc: 9.8
             os: ubuntu-latest
           - ghc: '9.10'
