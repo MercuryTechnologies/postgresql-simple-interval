@@ -6,7 +6,7 @@ import qualified Control.Monad as Monad
 import qualified Data.Attoparsec.ByteString.Char8 as Attoparsec
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
-import qualified Data.ByteString.Char8 as Ascii
+import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
 import qualified Test.Hspec as H
@@ -106,15 +106,15 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
   H.describe "render" $ do
     H.it "works with zero" $ do
       let actual = Builder.toLazyByteString $ I.render I.zero
-      actual `H.shouldBe` "0 months 0 days 0 microseconds"
+      actual `H.shouldBe` "@ 0 mon 0 day 0 us"
 
     H.it "works with positive components" $ do
       let actual = Builder.toLazyByteString . I.render $ I.MkInterval 1 2 3
-      actual `H.shouldBe` "+1 months +2 days +3 microseconds"
+      actual `H.shouldBe` "@ +1 mon +2 day +3 us"
 
     H.it "works with negative components" $ do
       let actual = Builder.toLazyByteString . I.render $ I.MkInterval -3 -2 -1
-      actual `H.shouldBe` "-3 months -2 days -1 microseconds"
+      actual `H.shouldBe` "@ -3 mon -2 day -1 us"
 
   H.describe "parse" $ do
     H.it "fails with invalid input" $ do
@@ -132,9 +132,17 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     Monad.forM_ intervalStyles $ \(_, field) ->
       Monad.forM_ examples $ \example -> do
         let input = field example
-        H.it ("succeeds with " <> Ascii.unpack input) $ do
+        H.it ("succeeds with " <> show input) $ do
           let actual = Attoparsec.parseOnly I.parse input
           actual `H.shouldBe` Right (exampleInterval example)
+
+  H.describe "round trip" $ do
+    Monad.forM_ examples $ \example -> do
+      let interval = exampleInterval example
+      let input = LazyByteString.toStrict . Builder.toLazyByteString $ I.render interval
+      H.it ("succeeds with " <> show input) $ do
+        let actual = Attoparsec.parseOnly I.parse input
+        actual `H.shouldBe` Right interval
 
 data IntervalStyle
   = Iso8601

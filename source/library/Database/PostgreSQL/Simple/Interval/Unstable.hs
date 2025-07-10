@@ -175,25 +175,25 @@ add x y =
         <*> Function.on safeAdd microseconds x y
 
 -- | Renders an interval to a 'Builder'. This always has the same format:
--- @"X months Y days Z microseconds"@, where @X@, @Y@, and @Z@ are signed
--- integers.
+-- @"\@ X mon Y day Z us"@, where @X@, @Y@, and @Z@ are signed integers.
 --
 -- This is not the most compact format, but it is very easy to interpret and
 -- does not require dealing with decimals (which could introduce precision
 -- problems).
 --
 -- >>> render MkInterval { months = 0, days = -1, microseconds = 2 }
--- "0 months -1 days +2 microseconds"
+-- "@ 0 mon -1 day +2 us"
 render :: Interval -> Builder.Builder
 render x =
   let signed :: (Num a, Ord a) => (a -> Builder.Builder) -> a -> Builder.Builder
       signed f n = (if n > 0 then "+" else "") <> f n
-   in signed Builder.int32Dec (months x)
-        <> " months "
+   in "@ "
+        <> signed Builder.int32Dec (months x)
+        <> " mon "
         <> signed Builder.int32Dec (days x)
-        <> " days "
+        <> " day "
         <> signed Builder.int64Dec (microseconds x)
-        <> " microseconds"
+        <> " us"
 
 -- | Parses an interval. This is not a general purpose parser. It only supports
 -- the formats that PostgreSQL generates. For example, it will fail to parse an
@@ -255,6 +255,7 @@ parsePostgresVerbose = do
           Days <$> A.signed A.decimal <* maybePlural " day",
           Hours <$> A.signed A.decimal <* maybePlural " hour",
           Minutes <$> A.signed A.decimal <* maybePlural " min",
+          Microseconds <$> A.signed A.decimal <* " us",
           Seconds <$> A.signed A.scientific <* A.option "" (maybePlural " sec")
         ]
   ago <- A.option "" " ago"
@@ -307,6 +308,7 @@ data Component
   | Hours !Integer
   | Minutes !Integer
   | Seconds !Scientific.Scientific
+  | Microseconds !Integer
   deriving (Eq, Show)
 
 -- | Converts a 'Component' to an 'Interval'. Returns 'Nothing' if the
@@ -319,6 +321,7 @@ fromComponent c = case c of
   Hours h -> fromHours =<< Bits.toIntegralSized h
   Minutes m -> fromMinutes =<< Bits.toIntegralSized m
   Seconds u -> fromMicroseconds <$> Scientific.toBoundedInteger (u * 1e6)
+  Microseconds u -> fromMicroseconds <$> Bits.toIntegralSized u
 
 -- | Converts a list of 'Component's to an 'Interval'. Returns 'Nothing' if any
 -- of the components would overflow, or if adding any of them together would
@@ -339,6 +342,7 @@ negateComponent c = case c of
   Hours h -> Hours -h
   Minutes m -> Minutes -m
   Seconds u -> Seconds -u
+  Microseconds u -> Microseconds -u
 
 negateComponentsWhen :: (Functor f) => Bool -> f Component -> f Component
 negateComponentsWhen p = if p then fmap negateComponent else id
