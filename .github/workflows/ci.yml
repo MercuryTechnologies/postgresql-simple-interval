@@ -63,7 +63,8 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
-      - run: cabal configure --enable-documentation --enable-tests --flags=pedantic --haddock-for-hackage --jobs
+      - run: echo DOCUMENTATION=${{ matrix.ghc == '9.12' && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
+      - run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
@@ -98,8 +99,10 @@ jobs:
             os: ubuntu-latest
           - ghc: '8.10'
             os: ubuntu-latest
-          # Haddock is broken on GHC 9.0 and 9.2.
-          # https://github.com/haskell/cabal/issues/8326
+          - ghc: 9.0
+            os: ubuntu-latest
+          - ghc: 9.2
+            os: ubuntu-latest
           - ghc: 9.4
             os: ubuntu-latest
           - ghc: 9.6
