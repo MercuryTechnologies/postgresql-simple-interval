@@ -240,7 +240,7 @@ parseIso8601 = do
       A.choice
         [ Hours <$> A.signed A.decimal <* "H",
           Minutes <$> A.signed A.decimal <* "M",
-          Microseconds <$> A.signed A.scientific <* "S"
+          Seconds <$> A.signed A.scientific <* "S"
         ]
   pure $ dates <> times
 
@@ -255,7 +255,7 @@ parsePostgresVerbose = do
           Days <$> A.signed A.decimal <* maybePlural " day",
           Hours <$> A.signed A.decimal <* maybePlural " hour",
           Minutes <$> A.signed A.decimal <* maybePlural " min",
-          Microseconds <$> A.signed A.scientific <* A.option "" (maybePlural " sec")
+          Seconds <$> A.signed A.scientific <* A.option "" (maybePlural " sec")
         ]
   ago <- A.option "" " ago"
   pure $ negateComponentsWhen (not $ ByteString.null ago) components
@@ -288,8 +288,8 @@ parseTime = do
   sign <- parseSign
   hours <- Hours <$> A.decimal <* ":"
   minutes <- Minutes <$> A.decimal <* ":"
-  micros <- Microseconds <$> A.scientific
-  pure $ negateComponentsWhen (sign == "-") [hours, minutes, micros]
+  seconds <- Seconds <$> A.scientific
+  pure $ negateComponentsWhen (sign == "-") [hours, minutes, seconds]
 
 parseSign :: A.Parser ByteString.ByteString
 parseSign = A.choice ["-", "+", ""]
@@ -306,7 +306,7 @@ data Component
   | Days !Integer
   | Hours !Integer
   | Minutes !Integer
-  | Microseconds !Scientific.Scientific
+  | Seconds !Scientific.Scientific
   deriving (Eq, Show)
 
 -- | Converts a 'Component' to an 'Interval'. Returns 'Nothing' if the
@@ -318,7 +318,7 @@ fromComponent c = case c of
   Days d -> fromDays <$> Bits.toIntegralSized d
   Hours h -> fromHours =<< Bits.toIntegralSized h
   Minutes m -> fromMinutes =<< Bits.toIntegralSized m
-  Microseconds u -> fromMicroseconds <$> Scientific.toBoundedInteger (u * 1e6)
+  Seconds u -> fromMicroseconds <$> Scientific.toBoundedInteger (u * 1e6)
 
 -- | Converts a list of 'Component's to an 'Interval'. Returns 'Nothing' if any
 -- of the components would overflow, or if adding any of them together would
@@ -338,7 +338,7 @@ negateComponent c = case c of
   Days d -> Days -d
   Hours h -> Hours -h
   Minutes m -> Minutes -m
-  Microseconds u -> Microseconds -u
+  Seconds u -> Seconds -u
 
 negateComponentsWhen :: (Functor f) => Bool -> f Component -> f Component
 negateComponentsWhen p = if p then fmap negateComponent else id
