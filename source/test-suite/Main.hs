@@ -8,14 +8,14 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Char8 as Ascii
 import qualified Data.Int as Int
-import qualified Database.PostgreSQL.Interval.Unstable as I
+import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
 import qualified Test.Hspec as H
 
 main :: IO ()
 main = H.hspec spec
 
 spec :: H.Spec
-spec = H.describe "Database.PostgreSQL.Interval" $ do
+spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
   H.describe "zero" $ do
     H.it "works" $ do
       I.zero `H.shouldBe` I.MkInterval 0 0 0

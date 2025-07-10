@@ -1,4 +1,4 @@
-module Database.PostgreSQL.Interval
+module Database.PostgreSQL.Simple.Interval
   ( Unstable.Interval (..),
     Unstable.zero,
     Unstable.fromMicroseconds,
@@ -13,4 +13,4 @@ module Database.PostgreSQL.Interval
   )
 where
 
-import qualified Database.PostgreSQL.Interval.Unstable as Unstable
+import qualified Database.PostgreSQL.Simple.Interval.Unstable as Unstable

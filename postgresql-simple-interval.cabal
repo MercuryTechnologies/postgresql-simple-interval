@@ -59,8 +59,8 @@ library
 
   -- cabal-gild: discover source/library
   exposed-modules:
-    Database.PostgreSQL.Interval
-    Database.PostgreSQL.Interval.Unstable
+    Database.PostgreSQL.Simple.Interval
+    Database.PostgreSQL.Simple.Interval.Unstable
 
   hs-source-dirs: source/library
 
