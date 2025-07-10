@@ -26,11 +26,11 @@ import qualified Database.PostgreSQL.Simple.TypeInfo.Static as Postgres
 -- Note that the @time@ library provides several duration types that are not
 -- appropriate to use as PostgreSQL intervals:
 --
--- - @NominalDiffTime@: Does not handle days or months. Allows up to picosecond
---   precision. Is not bounded.
--- - @CalendarDiffTime@: Does not handle days. Embeds a @NominalDiffTime@. Is
---   not bounded.
--- - @CalendarDiffDays@: Does not handle seconds. Is not bounded.
+-- - 'Data.Time.NominalDiffTime': Does not handle days or months. Allows up to
+--   picosecond precision. Is not bounded.
+-- - 'Data.Time.CalendarDiffTime': Does not handle days. Embeds a
+--   @NominalDiffTime@. Is not bounded.
+-- - 'Data.Time.CalendarDiffDays': Does not handle seconds. Is not bounded.
 data Interval = MkInterval
   { months :: !Int.Int32,
     days :: !Int.Int32,
@@ -43,7 +43,7 @@ instance Postgres.FromField Interval where
   fromField = Postgres.attoFieldParser (== Postgres.intervalOid) parse
 
 -- | Uses 'render'. Always includes an @interval@ prefix, like
--- @interval '2 months 3 days 4 microseconds'@.
+-- @interval '\@ 0 mon -1 day +2 us'@.
 instance Postgres.ToField Interval where
   toField = Postgres.Plain . ("interval " <>) . Postgres.inQuotes . render
 
