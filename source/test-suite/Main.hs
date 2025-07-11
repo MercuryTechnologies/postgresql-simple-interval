@@ -107,15 +107,19 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
   H.describe "render" $ do
     H.it "works with zero" $ do
       let actual = Builder.toLazyByteString $ I.render I.zero
-      actual `H.shouldBe` "@ 0 mon 0 day 0 us"
+      actual `H.shouldBe` "@ 0 mon 0 day 0 hour 0 min 0 sec 0 us"
 
     H.it "works with positive components" $ do
       let actual = Builder.toLazyByteString . I.render $ I.MkInterval 1 2 3
-      actual `H.shouldBe` "@ +1 mon +2 day +3 us"
+      actual `H.shouldBe` "@ +1 mon +2 day 0 hour 0 min 0 sec +3 us"
 
     H.it "works with negative components" $ do
       let actual = Builder.toLazyByteString . I.render $ I.MkInterval (-3) (-2) (-1)
-      actual `H.shouldBe` "@ -3 mon -2 day -1 us"
+      actual `H.shouldBe` "@ -3 mon -2 day 0 hour 0 min 0 sec -1 us"
+
+    H.it "works with time components" $ do
+      let actual = Builder.toLazyByteString . I.render $ I.MkInterval 0 0 3723000004
+      actual `H.shouldBe` "@ 0 mon 0 day +1 hour +2 min +3 sec +4 us"
 
   H.describe "parse" $ do
     H.it "fails with invalid input" $ do

@@ -53,7 +53,7 @@ instance Postgres.FromField Interval where
   fromField = Postgres.attoFieldParser (== Postgres.intervalOid) parse
 
 -- | Uses 'render'. Always includes an @interval@ prefix, like
--- @interval '\@ 0 mon -1 day +2 us'@.
+-- @interval '...'@.
 instance Postgres.ToField Interval where
   toField = Postgres.Plain . ("interval '" <>) . (<> "'") . render
 
@@ -210,24 +210,34 @@ add x y =
         <*> Function.on safeAdd microseconds x y
 
 -- | Renders an interval to a 'Builder'. This always has the same format:
--- @"\@ X mon Y day Z us"@, where @X@, @Y@, and @Z@ are signed integers.
+-- @"\@ A mon B day C hour D min E sec F us"@, where @A@, @B@, @C@, @D@, @E@,
+-- and @F@ are signed integers.
 --
 -- This is not the most compact format, but it is very easy to interpret and
 -- does not require dealing with decimals (which could introduce precision
 -- problems).
 --
 -- >>> render MkInterval { months = 0, days = -1, microseconds = 2 }
--- "@ 0 mon -1 day +2 us"
+-- "@ 0 mon -1 day 0 hour 0 min 0 sec +2 us"
 render :: Interval -> Builder.Builder
 render x =
   let signed :: (Num a, Ord a) => (a -> Builder.Builder) -> a -> Builder.Builder
       signed f n = (if n > 0 then "+" else "") <> f n
+      (t1, u) = quotRem (microseconds x) 1000000
+      (t2, s) = quotRem t1 60
+      (h, m) = quotRem t2 60
    in "@ "
         <> signed Builder.int32Dec (months x)
         <> " mon "
         <> signed Builder.int32Dec (days x)
         <> " day "
-        <> signed Builder.int64Dec (microseconds x)
+        <> signed Builder.int64Dec h
+        <> " hour "
+        <> signed Builder.int64Dec m
+        <> " min "
+        <> signed Builder.int64Dec s
+        <> " sec "
+        <> signed Builder.int64Dec u
         <> " us"
 
 -- | Parses an interval. This is not a general purpose parser. It only supports
