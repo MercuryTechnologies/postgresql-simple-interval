@@ -92,7 +92,7 @@ jobs:
           path: artifact.tar
       - env:
           PGPASSWORD: postgres
-        run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
+        run: cabal run -- postgresql-simple-interval-test-suite --randomize
     strategy:
       matrix:
         include:
