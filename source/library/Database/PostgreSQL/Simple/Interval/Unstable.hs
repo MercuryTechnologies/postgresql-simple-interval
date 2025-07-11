@@ -9,9 +9,14 @@ import qualified Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
+import qualified Data.ByteString.Char8 as Ascii
+import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Function as Function
 import qualified Data.Int as Int
 import qualified Data.Scientific as Scientific
+import qualified Data.Text as Text
+import qualified Database.Persist as Persist
+import qualified Database.Persist.Sql as Persist
 import qualified Database.PostgreSQL.Simple.FromField as Postgres
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Database.PostgreSQL.Simple.TypeInfo.Static as Postgres
@@ -44,7 +49,32 @@ instance Postgres.FromField Interval where
 -- | Uses 'render'. Always includes an @interval@ prefix, like
 -- @interval '\@ 0 mon -1 day +2 us'@.
 instance Postgres.ToField Interval where
-  toField = Postgres.Plain . ("interval " <>) . Postgres.inQuotes . render
+  toField = Postgres.Plain . ("interval '" <>) . (<> "'") . render
+
+-- | Behaves the same as the 'Postgres.FromField' and 'Postgres.ToField'
+-- instances.
+instance Persist.PersistField Interval where
+  fromPersistValue persistValue = case persistValue of
+    Persist.PersistLiteralEscaped byteString
+      | Right interval <- A.parseOnly parse byteString ->
+          Right interval
+    Persist.PersistLiteral byteString
+      | Just withoutPrefix <- Ascii.stripPrefix "interval '" byteString,
+        Just withoutSuffix <- Ascii.stripSuffix "'" withoutPrefix,
+        Right interval <- A.parseOnly parse withoutSuffix ->
+          Right interval
+    _ -> Left $ "Invalid interval: " <> Text.pack (show persistValue)
+  toPersistValue =
+    Persist.PersistLiteral
+      . LazyByteString.toStrict
+      . Builder.toLazyByteString
+      . ("interval '" <>)
+      . (<> "'")
+      . render
+
+-- | @'Persist.SqlOther' "interval"@
+instance Persist.PersistFieldSql Interval where
+  sqlType = const $ Persist.SqlOther "interval"
 
 -- | The empty interval, representing no time at all.
 --

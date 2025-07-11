@@ -20,5 +20,6 @@ ghc.developPackage {
       pkgs.nixfmt-rfc-style
       pkgs.pkg-config
       pkgs.postgresql
+      pkgs.zlib
     ];
 }
