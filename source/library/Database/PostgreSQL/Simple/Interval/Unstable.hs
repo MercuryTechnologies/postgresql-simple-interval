@@ -35,6 +35,12 @@ import qualified Database.PostgreSQL.Simple.TypeInfo.Static as Postgres
 -- - 'Data.Time.CalendarDiffTime': Does not handle days. Embeds a
 --   @NominalDiffTime@. Is not bounded.
 -- - 'Data.Time.CalendarDiffDays': Does not handle seconds. Is not bounded.
+--
+-- WARNING: The PostgreSQL interval parser is broken in versions prior to 15.
+-- It is not possible to round trip all intervals through PostgreSQL on those
+-- versions. You should upgrade to at least PostgreSQL version 15. For more
+-- information, see this patch:
+-- <https://git.postgresql.org/gitweb/?p=postgresql.git;a=commitdiff;h=e39f99046>
 data Interval = MkInterval
   { months :: !Int.Int32,
     days :: !Int.Int32,
