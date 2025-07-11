@@ -1,4 +1,3 @@
-{-# LANGUAGE LexicalNegation #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -30,7 +29,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       actual `H.shouldBe` Nothing
 
     H.it "fails with negative month overflow" $ do
-      let actual = I.add (I.fromMonths minBound) (I.fromMonths -1)
+      let actual = I.add (I.fromMonths minBound) (I.fromMonths (-1))
       actual `H.shouldBe` Nothing
 
     H.it "fails with positive day overflow" $ do
@@ -38,7 +37,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       actual `H.shouldBe` Nothing
 
     H.it "fails with negative day overflow" $ do
-      let actual = I.add (I.fromDays minBound) (I.fromDays -1)
+      let actual = I.add (I.fromDays minBound) (I.fromDays (-1))
       actual `H.shouldBe` Nothing
 
     H.it "fails with positive microsecond overflow" $ do
@@ -46,7 +45,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       actual `H.shouldBe` Nothing
 
     H.it "fails with negative microsecond overflow" $ do
-      let actual = I.add (I.fromMicroseconds minBound) (I.fromMicroseconds -1)
+      let actual = I.add (I.fromMicroseconds minBound) (I.fromMicroseconds (-1))
       actual `H.shouldBe` Nothing
 
   H.describe "fromMicroseconds" $ do
@@ -113,7 +112,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       actual `H.shouldBe` "@ +1 mon +2 day +3 us"
 
     H.it "works with negative components" $ do
-      let actual = Builder.toLazyByteString . I.render $ I.MkInterval -3 -2 -1
+      let actual = Builder.toLazyByteString . I.render $ I.MkInterval (-3) (-2) (-1)
       actual `H.shouldBe` "@ -3 mon -2 day -1 us"
 
   H.describe "parse" $ do
@@ -190,36 +189,36 @@ examples :: [Example]
 examples =
   [ mkExample 0 0 0 "PT0S" "00:00:00" "@ 0" "0",
     mkExample 1 0 0 "P1M" "1 mon" "@ 1 mon" "0-1",
-    mkExample -1 0 0 "P-1M" "-1 mons" "@ 1 mon ago" "-0-1",
+    mkExample (-1) 0 0 "P-1M" "-1 mons" "@ 1 mon ago" "-0-1",
     mkExample 3 0 0 "P3M" "3 mons" "@ 3 mons" "0-3",
     mkExample 6 0 0 "P6M" "6 mons" "@ 6 mons" "0-6",
     mkExample 12 0 0 "P1Y" "1 year" "@ 1 year" "1-0",
-    mkExample -12 0 0 "P-1Y" "-1 years" "@ 1 year ago" "-1-0",
+    mkExample (-12) 0 0 "P-1Y" "-1 years" "@ 1 year ago" "-1-0",
     mkExample 13 0 0 "P1Y1M" "1 year 1 mon" "@ 1 year 1 mon" "1-1",
-    mkExample -13 0 0 "P-1Y-1M" "-1 years -1 mons" "@ 1 year 1 mon ago" "-1-1",
+    mkExample (-13) 0 0 "P-1Y-1M" "-1 years -1 mons" "@ 1 year 1 mon ago" "-1-1",
     mkExample 24 0 0 "P2Y" "2 years" "@ 2 years" "2-0",
     mkExample 0 1 0 "P1D" "1 day" "@ 1 day" "1 0:00:00",
-    mkExample 0 -1 0 "P-1D" "-1 days" "@ 1 day ago" "-1 0:00:00",
+    mkExample 0 (-1) 0 "P-1D" "-1 days" "@ 1 day ago" "-1 0:00:00",
     mkExample 0 2 0 "P2D" "2 days" "@ 2 days" "2 0:00:00",
     mkExample 0 7 0 "P7D" "7 days" "@ 7 days" "7 0:00:00",
     mkExample 0 0 1 "PT0.000001S" "00:00:00.000001" "@ 0.000001 secs" "0:00:00.000001",
-    mkExample 0 0 -1 "PT-0.000001S" "-00:00:00.000001" "@ 0.000001 secs ago" "-0:00:00.000001",
+    mkExample 0 0 (-1) "PT-0.000001S" "-00:00:00.000001" "@ 0.000001 secs ago" "-0:00:00.000001",
     mkExample 0 0 1e3 "PT0.001S" "00:00:00.001" "@ 0.001 secs" "0:00:00.001",
     mkExample 0 0 1e6 "PT1S" "00:00:01" "@ 1 sec" "0:00:01",
-    mkExample 0 0 -1e6 "PT-1S" "-00:00:01" "@ 1 sec ago" "-0:00:01",
+    mkExample 0 0 (-1e6) "PT-1S" "-00:00:01" "@ 1 sec ago" "-0:00:01",
     mkExample 0 0 2e6 "PT2S" "00:00:02" "@ 2 secs" "0:00:02",
     mkExample 0 0 60e6 "PT1M" "00:01:00" "@ 1 min" "0:01:00",
-    mkExample 0 0 -60e6 "PT-1M" "-00:01:00" "@ 1 min ago" "-0:01:00",
+    mkExample 0 0 (-60e6) "PT-1M" "-00:01:00" "@ 1 min ago" "-0:01:00",
     mkExample 0 0 120e6 "PT2M" "00:02:00" "@ 2 mins" "0:02:00",
     mkExample 0 0 3600e6 "PT1H" "01:00:00" "@ 1 hour" "01:00:00",
-    mkExample 0 0 -3600e6 "PT-1H" "-01:00:00" "@ 1 hour ago" "-01:00:00",
+    mkExample 0 0 (-3600e6) "PT-1H" "-01:00:00" "@ 1 hour ago" "-01:00:00",
     mkExample 0 0 7200e6 "PT2H" "02:00:00" "@ 2 hours" "02:00:00",
     mkExample 0 0 86400e6 "PT24H" "24:00:00" "@ 24 hours" "24:00:00",
     mkExample 1 1 1e6 "P1M1DT1S" "1 mon 1 day 00:00:01" "@ 1 mon 1 day 1 sec" "+0-1 +1 +0:00:01",
-    mkExample -1 -1 -1e6 "P-1M-1DT-1S" "-1 mons -1 days -00:00:01" "@ 1 mon 1 day 1 sec ago" "-0-1 -1 -0:00:01",
-    mkExample -1 1 1e6 "P-1M1DT1S" "-1 mons +1 day 00:00:01" "@ 1 mon -1 days -1 sec ago" "-0-1 +1 +0:00:01",
-    mkExample 1 -1 1e6 "P1M-1DT1S" "1 mon -1 days +00:00:01" "@ 1 mon -1 days 1 sec" "+0-1 -1 +0:00:01",
-    mkExample 1 1 -1e6 "P1M1DT-1S" "1 mon 1 day -00:00:01" "@ 1 mon 1 day -1 sec" "+0-1 +1 -0:00:01",
+    mkExample (-1) (-1) (-1e6) "P-1M-1DT-1S" "-1 mons -1 days -00:00:01" "@ 1 mon 1 day 1 sec ago" "-0-1 -1 -0:00:01",
+    mkExample (-1) 1 1e6 "P-1M1DT1S" "-1 mons +1 day 00:00:01" "@ 1 mon -1 days -1 sec ago" "-0-1 +1 +0:00:01",
+    mkExample 1 (-1) 1e6 "P1M-1DT1S" "1 mon -1 days +00:00:01" "@ 1 mon -1 days 1 sec" "+0-1 -1 +0:00:01",
+    mkExample 1 1 (-1e6) "P1M1DT-1S" "1 mon 1 day -00:00:01" "@ 1 mon 1 day -1 sec" "+0-1 +1 -0:00:01",
     mkExample 14 3 14706000007 "P1Y2M3DT4H5M6.000007S" "1 year 2 mons 3 days 04:05:06.000007" "@ 1 year 2 mons 3 days 4 hours 5 mins 6.000007 secs" "+1-2 +3 +4:05:06.000007",
     mkExample maxBound 0 0 "P178956970Y7M" "178956970 years 7 mons" "@ 178956970 years 7 mons" "178956970-7",
     mkExample minBound 0 0 "P-178956970Y-8M" "-178956970 years -8 mons" "@ 178956970 years 8 mons ago" "-178956970-8",

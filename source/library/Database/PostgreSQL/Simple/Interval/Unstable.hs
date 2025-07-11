@@ -1,4 +1,3 @@
-{-# LANGUAGE LexicalNegation #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -336,13 +335,13 @@ fromComponents =
 
 negateComponent :: Component -> Component
 negateComponent c = case c of
-  Years y -> Years -y
-  Months m -> Months -m
-  Days d -> Days -d
-  Hours h -> Hours -h
-  Minutes m -> Minutes -m
-  Seconds u -> Seconds -u
-  Microseconds u -> Microseconds -u
+  Years y -> Years (-y)
+  Months m -> Months (-m)
+  Days d -> Days (-d)
+  Hours h -> Hours (-h)
+  Minutes m -> Minutes (-m)
+  Seconds u -> Seconds (-u)
+  Microseconds u -> Microseconds (-u)
 
 negateComponentsWhen :: (Functor f) => Bool -> f Component -> f Component
 negateComponentsWhen p = if p then fmap negateComponent else id

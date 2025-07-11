@@ -63,7 +63,8 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
-      - run: cabal configure --enable-documentation --enable-tests --flags=pedantic --haddock-for-hackage --jobs
+      - run: echo DOCUMENTATION=${{ matrix.ghc == '9.12' && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
+      - run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
@@ -80,7 +81,8 @@ jobs:
       - uses: ikalnytskyi/action-setup-postgres@v7
       - run: cabal build --only-dependencies
       - run: cabal build
-      - run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
+      - if: ${{ env.DOCUMENTATION }}
+        run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
       - run: tar --create --file artifact.tar --verbose artifact
       - uses: actions/upload-artifact@v4
         with:
@@ -88,18 +90,29 @@ jobs:
           path: artifact.tar
       - run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
     strategy:
-      fail-fast: false
       matrix:
         include:
-          - ghc: 9.12
+          - ghc: '9.12'
             os: macos-13
-          - ghc: 9.12
+          - ghc: '9.12'
             os: macos-latest
-          - ghc: 9.8
+          - ghc: '8.8'
+            os: ubuntu-latest
+          - ghc: '8.10'
+            os: ubuntu-latest
+          - ghc: '9.0'
+            os: ubuntu-latest
+          - ghc: '9.2'
+            os: ubuntu-latest
+          - ghc: '9.4'
+            os: ubuntu-latest
+          - ghc: '9.6'
+            os: ubuntu-latest
+          - ghc: '9.8'
             os: ubuntu-latest
           - ghc: '9.10'
             os: ubuntu-latest
-          - ghc: 9.12
+          - ghc: '9.12'
             os: ubuntu-latest
   release:
     if: ${{ github.event_name == 'release' }}
