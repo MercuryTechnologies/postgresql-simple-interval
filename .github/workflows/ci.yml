@@ -88,7 +88,9 @@ jobs:
         with:
           name: postgresql-simple-interval-${{ github.sha }}-${{ matrix.os }}-${{ matrix.ghc }}
           path: artifact.tar
-      - run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
+      - env:
+          PGPASSWORD: postgres
+        run: cabal run -- postgresql-simple-interval-test-suite --randomize --strict
     strategy:
       matrix:
         include:
