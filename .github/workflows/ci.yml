@@ -63,7 +63,7 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
-      - run: echo DOCUMENTATION=${{ matrix.ghc == '9.12' && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
+      - run: echo DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
       - run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
@@ -88,7 +88,7 @@ jobs:
       - run: tar --create --file artifact.tar --verbose artifact
       - uses: actions/upload-artifact@v4
         with:
-          name: postgresql-simple-interval-${{ github.sha }}-${{ matrix.os }}-${{ matrix.ghc }}
+          name: postgresql-simple-interval-${{ github.sha }}-${{ matrix.os }}-${{ matrix.ghc }}-${{ matrix.postgres }}
           path: artifact.tar
       - env:
           PGPASSWORD: postgres
@@ -96,46 +96,60 @@ jobs:
     strategy:
       matrix:
         include:
-          - ghc: '9.12'
+          - documentation: false
+            ghc: '9.12'
             postgres: 17
             os: macos-13
-          - ghc: '9.12'
+          - documentation: false
+            ghc: '9.12'
             postgres: 17
             os: macos-latest
-          - ghc: '8.8'
+          - documentation: false
+            ghc: '8.8'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '8.10'
+          - documentation: false
+            ghc: '8.10'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.0'
+          - documentation: false
+            ghc: '9.0'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.2'
+          - documentation: false
+            ghc: '9.2'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.4'
+          - documentation: false
+            ghc: '9.4'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.6'
+          - documentation: false
+            ghc: '9.6'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.8'
+          - documentation: false
+            ghc: '9.8'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.10'
+          - documentation: false
+            ghc: '9.10'
             postgres: 17
             os: ubuntu-latest
-          - ghc: '9.12'
+          - documentation: false
+            ghc: '9.12'
             postgres: 14
             os: ubuntu-latest
-          - ghc: '9.12'
+          - documentation: false
+            ghc: '9.12'
             postgres: 15
             os: ubuntu-latest
-          - ghc: '9.12'
+          - documentation: false
+            ghc: '9.12'
             postgres: 16
             os: ubuntu-latest
-          - ghc: '9.12'
+          - documentation: true
+            ghc: '9.12'
             postgres: 17
             os: ubuntu-latest
   release:
@@ -150,7 +164,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: postgresql-simple-interval-${{ github.sha }}-ubuntu-latest-9.12
+          name: postgresql-simple-interval-${{ github.sha }}-ubuntu-latest-9.12-17
       - run: tar --extract --file artifact.tar --verbose
       - uses: softprops/action-gh-release@v2
         with:
