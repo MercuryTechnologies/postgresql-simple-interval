@@ -1,14 +1,19 @@
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
 import qualified Data.Attoparsec.ByteString.Char8 as Attoparsec
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
+import qualified Data.Text as Text
+import qualified Database.PostgreSQL.Simple as Postgres
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
+import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Test.Hspec as H
+import qualified Text.Read as Read
 
 main :: IO ()
 main = H.hspec spec
@@ -105,15 +110,19 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
   H.describe "render" $ do
     H.it "works with zero" $ do
       let actual = Builder.toLazyByteString $ I.render I.zero
-      actual `H.shouldBe` "@ 0 mon 0 day 0 us"
+      actual `H.shouldBe` "@ 0 mon 0 day 0 hour 0 min 0 sec 0 us"
 
     H.it "works with positive components" $ do
       let actual = Builder.toLazyByteString . I.render $ I.MkInterval 1 2 3
-      actual `H.shouldBe` "@ +1 mon +2 day +3 us"
+      actual `H.shouldBe` "@ +1 mon +2 day 0 hour 0 min 0 sec +3 us"
 
     H.it "works with negative components" $ do
       let actual = Builder.toLazyByteString . I.render $ I.MkInterval (-3) (-2) (-1)
-      actual `H.shouldBe` "@ -3 mon -2 day -1 us"
+      actual `H.shouldBe` "@ -3 mon -2 day 0 hour 0 min 0 sec -1 us"
+
+    H.it "works with time components" $ do
+      let actual = Builder.toLazyByteString . I.render $ I.MkInterval 0 0 3723000004
+      actual `H.shouldBe` "@ 0 mon 0 day +1 hour +2 min +3 sec +4 us"
 
   H.describe "parse" $ do
     H.it "fails with invalid input" $ do
@@ -143,12 +152,41 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
         let actual = Attoparsec.parseOnly I.parse input
         actual `H.shouldBe` Right interval
 
+  H.describe "integration" $ do
+    Monad.forM_ intervalStyles $ \(style, field) -> do
+      H.describe ("with style " <> show style) $ do
+        Monad.forM_ examples $ \example -> do
+          H.it ("round trips " <> show (field example)) $ do
+            Postgres.withConnect Postgres.defaultConnectInfo $ \connection -> do
+              let interval = exampleInterval example
+              result <- Exception.try . Postgres.withTransaction connection $ do
+                Monad.void $ Postgres.execute connection "set local intervalstyle = ?" [style]
+                Postgres.query connection "select ?" [interval]
+              case result of
+                Right actual -> actual `H.shouldBe` [Postgres.Only interval]
+                Left somePostgresqlException -> do
+                  rows <- Postgres.query_ connection "select version()"
+                  case rows of
+                    Postgres.Only text : _
+                      | _ : rawVersion : _ <- Text.words text,
+                        Just version <- Read.readMaybe (Text.unpack rawVersion),
+                        version < (15 :: Double) ->
+                          H.pendingWith $ "interval parsing broken with PostgreSQL version " <> show version
+                    _ -> Exception.throwIO (somePostgresqlException :: Postgres.SomePostgreSqlException)
+
 data IntervalStyle
   = Iso8601
   | Postgres
   | PostgresVerbose
   | SqlStandard
   deriving (Eq, Show)
+
+instance Postgres.ToField IntervalStyle where
+  toField style = Postgres.Plain $ case style of
+    Iso8601 -> "iso_8601"
+    Postgres -> "postgres"
+    PostgresVerbose -> "postgres_verbose"
+    SqlStandard -> "sql_standard"
 
 data Example = MkExample
   { exampleInterval :: I.Interval,
