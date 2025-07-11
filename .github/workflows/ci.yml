@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: haskell-actions/run-ormolu@v17
   build:
-    name: GHC ${{ matrix.ghc }} on ${{ matrix.os }}
+    name: GHC ${{ matrix.ghc }} on ${{ matrix.os }} with PostgreSQL ${{ matrix.postgres }}
     needs: meta
     runs-on: ${{ matrix.os }}
     steps:
