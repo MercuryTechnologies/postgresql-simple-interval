@@ -53,7 +53,7 @@ jobs:
   build:
     name: GHC ${{ matrix.ghc }} on ${{ matrix.os }} with PostgreSQL ${{ matrix.postgres }}
     needs: meta
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v4
       - run: mkdir artifact
@@ -99,59 +99,55 @@ jobs:
           - documentation: false
             ghc: '9.12'
             postgres: 17
-            os: macos-13
-          - documentation: false
-            ghc: '9.12'
-            postgres: 17
-            os: macos-latest
+            os: macos
           - documentation: false
             ghc: '8.8'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '8.10'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.0'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.2'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.4'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.6'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.8'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.10'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.12'
             postgres: 14
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.12'
             postgres: 15
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: false
             ghc: '9.12'
             postgres: 16
-            os: ubuntu-latest
+            os: ubuntu
           - documentation: true
             ghc: '9.12'
             postgres: 17
-            os: ubuntu-latest
+            os: ubuntu
   release:
     if: ${{ github.event_name == 'release' }}
     name: Release
@@ -164,7 +160,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: postgresql-simple-interval-${{ github.sha }}-ubuntu-latest-9.12-17
+          name: postgresql-simple-interval-${{ github.sha }}-ubuntu-9.12-17
       - run: tar --extract --file artifact.tar --verbose
       - uses: softprops/action-gh-release@v2
         with:
