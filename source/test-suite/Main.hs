@@ -1,16 +1,19 @@
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
 import qualified Data.Attoparsec.ByteString.Char8 as Attoparsec
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
+import qualified Data.Text as Text
 import qualified Database.PostgreSQL.Simple as Postgres
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Test.Hspec as H
+import qualified Text.Read as Read
 
 main :: IO ()
 main = H.hspec spec
@@ -154,12 +157,22 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       H.describe ("with style " <> show style) $ do
         Monad.forM_ examples $ \example -> do
           H.it ("round trips " <> show (field example)) $ do
-            let interval = exampleInterval example
-            actual <- Postgres.withConnect Postgres.defaultConnectInfo $ \connection -> do
-              Postgres.withTransaction connection $ do
+            Postgres.withConnect Postgres.defaultConnectInfo $ \connection -> do
+              let interval = exampleInterval example
+              result <- Exception.try . Postgres.withTransaction connection $ do
                 Monad.void $ Postgres.execute connection "set local intervalstyle = ?" [style]
                 Postgres.query connection "select ?" [interval]
-            actual `H.shouldBe` [Postgres.Only interval]
+              case result of
+                Right actual -> actual `H.shouldBe` [Postgres.Only interval]
+                Left somePostgresqlException -> do
+                  rows <- Postgres.query_ connection "select version()"
+                  case rows of
+                    Postgres.Only text : _
+                      | _ : rawVersion : _ <- Text.words text,
+                        Just version <- Read.readMaybe (Text.unpack rawVersion),
+                        version < (15 :: Double) ->
+                          H.pendingWith $ "interval parsing broken with PostgreSQL version " <> show version
+                    _ -> Exception.throwIO (somePostgresqlException :: Postgres.SomePostgreSqlException)
 
 data IntervalStyle
   = Iso8601

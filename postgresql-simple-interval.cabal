@@ -28,6 +28,7 @@ common library
     base >=4.13 && <4.22,
     bytestring >=0.10.10 && <0.13,
     postgresql-simple ^>=0.7,
+    text >=1.2.4 && <1.3 || >=2.0 && <2.2,
 
   default-language: Haskell2010
   ghc-options:
@@ -63,7 +64,6 @@ library
   build-depends:
     persistent ^>=2.17,
     scientific ^>=0.3.8,
-    text >=1.2.4 && <1.3 || >=2.0 && <2.2,
 
   -- cabal-gild: discover source/library
   exposed-modules:
