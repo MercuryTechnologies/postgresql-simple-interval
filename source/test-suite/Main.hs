@@ -7,7 +7,9 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
+import qualified Database.PostgreSQL.Simple as Postgres
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
+import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Test.Hspec as H
 
 main :: IO ()
@@ -143,12 +145,31 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
         let actual = Attoparsec.parseOnly I.parse input
         actual `H.shouldBe` Right interval
 
+  H.describe "integration" $ do
+    Monad.forM_ intervalStyles $ \(style, field) -> do
+      H.describe ("with style " <> show style) $ do
+        Monad.forM_ examples $ \example -> do
+          H.it ("round trips " <> show (field example)) $ do
+            let interval = exampleInterval example
+            actual <- Postgres.withConnect Postgres.defaultConnectInfo $ \connection -> do
+              Postgres.withTransaction connection $ do
+                Monad.void $ Postgres.execute connection "set local intervalstyle = ?" [style]
+                Postgres.query connection "select ?" [interval]
+            actual `H.shouldBe` [Postgres.Only interval]
+
 data IntervalStyle
   = Iso8601
   | Postgres
   | PostgresVerbose
   | SqlStandard
   deriving (Eq, Show)
+
+instance Postgres.ToField IntervalStyle where
+  toField style = Postgres.Plain $ case style of
+    Iso8601 -> "iso_8601"
+    Postgres -> "postgres"
+    PostgresVerbose -> "postgres_verbose"
+    SqlStandard -> "sql_standard"
 
 data Example = MkExample
   { exampleInterval :: I.Interval,
