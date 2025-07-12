@@ -10,6 +10,7 @@ import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified Database.PostgreSQL.Simple as Postgres
+import qualified Database.PostgreSQL.Simple.Internal as Postgres
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Test.Hspec as H
@@ -164,7 +165,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
               case result of
                 Right actual -> actual `H.shouldBe` [Postgres.Only interval]
                 Left somePostgresqlException -> do
-                  version <- Pq.serverVersion connection
+                  version <- Postgres.withConnection connection Pq.serverVersion
                   if version < 150000
                     then H.pendingWith $ "interval parsing broken with PostgreSQL version " <> show version
                     else Exception.throwIO (somePostgresqlException :: Postgres.SomePostgreSqlException)
