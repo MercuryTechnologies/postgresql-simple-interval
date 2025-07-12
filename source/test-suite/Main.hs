@@ -8,12 +8,12 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
-import qualified Data.Text as Text
+import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified Database.PostgreSQL.Simple as Postgres
+import qualified Database.PostgreSQL.Simple.Internal as Postgres
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Test.Hspec as H
-import qualified Text.Read as Read
 
 main :: IO ()
 main = H.hspec spec
@@ -165,14 +165,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
               case result of
                 Right actual -> actual `H.shouldBe` [Postgres.Only interval]
                 Left somePostgresqlException -> do
-                  rows <- Postgres.query_ connection "select version()"
-                  case rows of
-                    Postgres.Only text : _
-                      | _ : rawVersion : _ <- Text.words text,
-                        Just version <- Read.readMaybe (Text.unpack rawVersion),
-                        version < (15 :: Double) ->
-                          H.pendingWith $ "interval parsing broken with PostgreSQL version " <> show version
-                    _ -> Exception.throwIO (somePostgresqlException :: Postgres.SomePostgreSqlException)
+                  version <- Postgres.withConnection connection Pq.serverVersion
+                  if version < 150000
+                    then H.pendingWith $ "interval parsing broken with PostgreSQL version " <> show version
+                    else Exception.throwIO (somePostgresqlException :: Postgres.SomePostgreSqlException)
 
 data IntervalStyle
   = Iso8601
