@@ -148,6 +148,10 @@ jobs:
             ghc: '9.12'
             postgres: 17
             os: ubuntu
+          - documentation: false
+            ghc: '9.12'
+            postgres: 17
+            os: windows
   release:
     if: ${{ github.event_name == 'release' }}
     name: Release
