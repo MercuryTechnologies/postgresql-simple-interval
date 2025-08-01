@@ -1,5 +1,6 @@
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Database.PostgreSQL.Simple.Interval.Unstable where
 
@@ -110,6 +111,20 @@ fromMilliseconds =
     . (* 1e3)
     . toInteger
 
+-- | Like 'fromMilliseconds' but uses saturating arithmetic rather than
+-- returning 'Maybe'.
+--
+-- >>> fromMillisecondsSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 1000}
+-- >>> fromMillisecondsSaturating 9223372036854776
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromMillisecondsSaturating :: Int.Int64 -> Interval
+fromMillisecondsSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
+    . (* 1e3)
+    . toInteger
+
 -- | Creates an interval from a number of seconds. Returns 'Nothing' if the
 -- interval would overflow.
 --
@@ -121,6 +136,20 @@ fromSeconds :: Int.Int64 -> Maybe Interval
 fromSeconds =
   fmap fromMicroseconds
     . Bits.toIntegralSized
+    . (* 1e6)
+    . toInteger
+
+-- | Like 'fromSeconds' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromSecondsSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 1000000}
+-- >>> fromSecondsSaturating 9223372036855
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromSecondsSaturating :: Int.Int64 -> Interval
+fromSecondsSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
     . (* 1e6)
     . toInteger
 
@@ -138,6 +167,20 @@ fromMinutes =
     . (* 60e6)
     . toInteger
 
+-- | Like 'fromMinutes' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromMinutesSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 60000000}
+-- >>> fromMinutesSaturating 153722867281
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromMinutesSaturating :: Int.Int64 -> Interval
+fromMinutesSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
+    . (* 60e6)
+    . toInteger
+
 -- | Creates an interval from a number of hours. Returns 'Nothing' if the
 -- interval would overflow.
 --
@@ -149,6 +192,20 @@ fromHours :: Int.Int64 -> Maybe Interval
 fromHours =
   fmap fromMicroseconds
     . Bits.toIntegralSized
+    . (* 3600e6)
+    . toInteger
+
+-- | Like 'fromHours' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromHoursSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 3600000000}
+-- >>> fromHoursSaturating 2562047789
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromHoursSaturating :: Int.Int64 -> Interval
+fromHoursSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
     . (* 3600e6)
     . toInteger
 
@@ -173,6 +230,20 @@ fromWeeks =
     . (* 7)
     . toInteger
 
+-- | Like 'fromWeeks' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromWeeksSaturating 1
+-- MkInterval {months = 0, days = 7, microseconds = 0}
+-- >>> fromWeeksSaturating 306783379
+-- MkInterval {months = 0, days = 2147483647, microseconds = 0}
+fromWeeksSaturating :: Int.Int32 -> Interval
+fromWeeksSaturating =
+  fromDays
+    . toIntegralSaturating
+    . (* 7)
+    . toInteger
+
 -- | Creates an interval from a number of months.
 --
 -- >>> fromMonths 1
@@ -191,6 +262,20 @@ fromYears :: Int.Int32 -> Maybe Interval
 fromYears =
   fmap fromMonths
     . Bits.toIntegralSized
+    . (* 12)
+    . toInteger
+
+-- | Like 'fromYears' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromYearsSaturating 1
+-- MkInterval {months = 12, days = 0, microseconds = 0}
+-- >>> fromYearsSaturating 178956971
+-- MkInterval {months = 2147483647, days = 0, microseconds = 0}
+fromYearsSaturating :: Int.Int32 -> Interval
+fromYearsSaturating =
+  fromMonths
+    . toIntegralSaturating
     . (* 12)
     . toInteger
 
@@ -391,3 +476,10 @@ negateComponent c = case c of
 
 negateComponentsWhen :: (Functor f) => Bool -> f Component -> f Component
 negateComponentsWhen p = if p then fmap negateComponent else id
+
+toIntegralSaturating :: forall a b. (Integral a, Integral b, Bounded b) => a -> b
+toIntegralSaturating x = case toInteger x of
+  y
+    | let lo = minBound :: b, y < toInteger lo -> lo
+    | let hi = maxBound :: b, y > toInteger hi -> hi
+    | otherwise -> fromInteger y

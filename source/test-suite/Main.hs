@@ -64,12 +64,26 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "fails with overflow" $ do
       I.fromMilliseconds maxBound `H.shouldBe` Nothing
 
+  H.describe "fromMillisecondsSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromMillisecondsSaturating 1 `H.shouldBe` I.MkInterval 0 0 1e3
+
+    H.it "succeeds with saturating" $ do
+      I.fromMillisecondsSaturating 9223372036854776 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
   H.describe "fromSeconds" $ do
     H.it "succeeds with no overflow" $ do
       I.fromSeconds 1 `H.shouldBe` Just (I.MkInterval 0 0 1e6)
 
     H.it "fails with overflow" $ do
       I.fromSeconds maxBound `H.shouldBe` Nothing
+
+  H.describe "fromSecondsSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromSecondsSaturating 1 `H.shouldBe` I.MkInterval 0 0 1e6
+
+    H.it "succeeds with saturating" $ do
+      I.fromSecondsSaturating 9223372036855 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
   H.describe "fromMinutes" $ do
     H.it "succeeds with no overflow" $ do
@@ -78,12 +92,26 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "fails with overflow" $ do
       I.fromMinutes maxBound `H.shouldBe` Nothing
 
+  H.describe "fromMinutesSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromMinutesSaturating 1 `H.shouldBe` I.MkInterval 0 0 60e6
+
+    H.it "succeeds with saturating" $ do
+      I.fromMinutesSaturating 153722867281 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
   H.describe "fromHours" $ do
     H.it "succeeds with no overflow" $ do
       I.fromHours 1 `H.shouldBe` Just (I.MkInterval 0 0 3600e6)
 
     H.it "fails with overflow" $ do
       I.fromHours maxBound `H.shouldBe` Nothing
+
+  H.describe "fromHoursSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromHoursSaturating 1 `H.shouldBe` I.MkInterval 0 0 3600e6
+
+    H.it "succeeds with saturating" $ do
+      I.fromHoursSaturating 2562047789 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
   H.describe "fromDays" $ do
     H.it "works" $ do
@@ -96,6 +124,13 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "fails with overflow" $ do
       I.fromWeeks maxBound `H.shouldBe` Nothing
 
+  H.describe "fromWeeksSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromWeeksSaturating 1 `H.shouldBe` I.MkInterval 0 7 0
+
+    H.it "succeeds with saturating" $ do
+      I.fromWeeksSaturating 306783379 `H.shouldBe` I.MkInterval 0 2147483647 0
+
   H.describe "fromMonths" $ do
     H.it "works" $ do
       I.fromMonths 1 `H.shouldBe` I.MkInterval 1 0 0
@@ -106,6 +141,13 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
 
     H.it "fails with overflow" $ do
       I.fromYears maxBound `H.shouldBe` Nothing
+
+  H.describe "fromYearsSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromYearsSaturating 1 `H.shouldBe` I.MkInterval 12 0 0
+
+    H.it "succeeds with saturating" $ do
+      I.fromYearsSaturating 178956971 `H.shouldBe` I.MkInterval 2147483647 0 0
 
   H.describe "render" $ do
     H.it "works with zero" $ do
