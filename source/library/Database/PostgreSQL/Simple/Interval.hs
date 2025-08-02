@@ -1,5 +1,7 @@
 module Database.PostgreSQL.Simple.Interval
   ( Unstable.Interval (..),
+
+    -- * Constructors
     Unstable.zero,
     Unstable.fromMicroseconds,
     Unstable.fromMilliseconds,
@@ -10,6 +12,14 @@ module Database.PostgreSQL.Simple.Interval
     Unstable.fromWeeks,
     Unstable.fromMonths,
     Unstable.fromYears,
+
+    -- ** Saturating
+    Unstable.fromMillisecondsSaturating,
+    Unstable.fromSecondsSaturating,
+    Unstable.fromMinutesSaturating,
+    Unstable.fromHoursSaturating,
+    Unstable.fromWeeksSaturating,
+    Unstable.fromYearsSaturating,
   )
 where
 
