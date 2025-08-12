@@ -158,7 +158,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: postgresql-simple-interval-${{ github.sha }}-ubuntu-9.12-17
       - run: tar --extract --file artifact.tar --verbose
