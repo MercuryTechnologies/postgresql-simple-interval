@@ -20,6 +20,14 @@ module Database.PostgreSQL.Simple.Interval
     Unstable.fromHoursSaturating,
     Unstable.fromWeeksSaturating,
     Unstable.fromYearsSaturating,
+
+    -- ** Literal
+    Unstable.fromMillisecondsLiteral,
+    Unstable.fromSecondsLiteral,
+    Unstable.fromMinutesLiteral,
+    Unstable.fromHoursLiteral,
+    Unstable.fromWeeksLiteral,
+    Unstable.fromYearsLiteral,
   )
 where
 

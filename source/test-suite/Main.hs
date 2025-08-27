@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
@@ -8,6 +10,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
+import qualified Data.Proxy as Proxy
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified Database.PostgreSQL.Simple as Postgres
 import qualified Database.PostgreSQL.Simple.Internal as Postgres
@@ -71,6 +74,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "succeeds with saturating" $ do
       I.fromMillisecondsSaturating 9223372036854776 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
+  H.describe "fromMillisecondsLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromMillisecondsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 1e3
+
   H.describe "fromSeconds" $ do
     H.it "succeeds with no overflow" $ do
       I.fromSeconds 1 `H.shouldBe` Just (I.MkInterval 0 0 1e6)
@@ -84,6 +91,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
 
     H.it "succeeds with saturating" $ do
       I.fromSecondsSaturating 9223372036855 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+  H.describe "fromSecondsLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromSecondsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 1e6
 
   H.describe "fromMinutes" $ do
     H.it "succeeds with no overflow" $ do
@@ -99,6 +110,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "succeeds with saturating" $ do
       I.fromMinutesSaturating 153722867281 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
+  H.describe "fromMinutesLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromMinutesLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 60e6
+
   H.describe "fromHours" $ do
     H.it "succeeds with no overflow" $ do
       I.fromHours 1 `H.shouldBe` Just (I.MkInterval 0 0 3600e6)
@@ -112,6 +127,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
 
     H.it "succeeds with saturating" $ do
       I.fromHoursSaturating 2562047789 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+  H.describe "fromHoursLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromHoursLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 3600e6
 
   H.describe "fromDays" $ do
     H.it "works" $ do
@@ -131,6 +150,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "succeeds with saturating" $ do
       I.fromWeeksSaturating 306783379 `H.shouldBe` I.MkInterval 0 2147483647 0
 
+  H.describe "fromWeeksLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromWeeksLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 7 0
+
   H.describe "fromMonths" $ do
     H.it "works" $ do
       I.fromMonths 1 `H.shouldBe` I.MkInterval 1 0 0
@@ -148,6 +171,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
 
     H.it "succeeds with saturating" $ do
       I.fromYearsSaturating 178956971 `H.shouldBe` I.MkInterval 2147483647 0 0
+
+  H.describe "fromYearsLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromYearsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 12 0 0
 
   H.describe "render" $ do
     H.it "works with zero" $ do
