@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -21,6 +22,7 @@ import qualified Database.Persist.Sql as Persist
 import qualified Database.PostgreSQL.Simple.FromField as Postgres
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Database.PostgreSQL.Simple.TypeInfo.Static as Postgres
+import qualified GHC.TypeLits as TypeLits
 
 -- | This type represents a PostgreSQL interval. Intervals can have month, day,
 -- and microsecond components. Each component is bounded, so they are not
@@ -125,6 +127,20 @@ fromMillisecondsSaturating =
     . (* 1e3)
     . toInteger
 
+-- | Like 'fromMilliseconds' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromMillisecondsLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 1000}
+fromMillisecondsLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 9223372036854775) =>
+  proxy n ->
+  Interval
+fromMillisecondsLiteral =
+  fromMillisecondsSaturating
+    . fromInteger
+    . TypeLits.natVal
+
 -- | Creates an interval from a number of seconds. Returns 'Nothing' if the
 -- interval would overflow.
 --
@@ -152,6 +168,20 @@ fromSecondsSaturating =
     . toIntegralSaturating
     . (* 1e6)
     . toInteger
+
+-- | Like 'fromSeconds' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromSecondsLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 1000000}
+fromSecondsLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 9223372036854) =>
+  proxy n ->
+  Interval
+fromSecondsLiteral =
+  fromSecondsSaturating
+    . fromInteger
+    . TypeLits.natVal
 
 -- | Creates an interval from a number of minutes. Returns 'Nothing' if the
 -- interval would overflow.
@@ -181,6 +211,20 @@ fromMinutesSaturating =
     . (* 60e6)
     . toInteger
 
+-- | Like 'fromMinutes' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromMinutesLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 60000000}
+fromMinutesLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 153722867280) =>
+  proxy n ->
+  Interval
+fromMinutesLiteral =
+  fromMinutesSaturating
+    . fromInteger
+    . TypeLits.natVal
+
 -- | Creates an interval from a number of hours. Returns 'Nothing' if the
 -- interval would overflow.
 --
@@ -208,6 +252,20 @@ fromHoursSaturating =
     . toIntegralSaturating
     . (* 3600e6)
     . toInteger
+
+-- | Like 'fromHours' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromHoursLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 3600000000}
+fromHoursLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 2562047788) =>
+  proxy n ->
+  Interval
+fromHoursLiteral =
+  fromHoursSaturating
+    . fromInteger
+    . TypeLits.natVal
 
 -- | Creates an interval from a number of days.
 --
@@ -244,6 +302,20 @@ fromWeeksSaturating =
     . (* 7)
     . toInteger
 
+-- | Like 'fromWeeks' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromWeeksLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 7, microseconds = 0}
+fromWeeksLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 306783378) =>
+  proxy n ->
+  Interval
+fromWeeksLiteral =
+  fromWeeksSaturating
+    . fromInteger
+    . TypeLits.natVal
+
 -- | Creates an interval from a number of months.
 --
 -- >>> fromMonths 1
@@ -278,6 +350,20 @@ fromYearsSaturating =
     . toIntegralSaturating
     . (* 12)
     . toInteger
+
+-- | Like 'fromYears' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromYearsLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 12, days = 0, microseconds = 0}
+fromYearsLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 178956970) =>
+  proxy n ->
+  Interval
+fromYearsLiteral =
+  fromYearsSaturating
+    . fromInteger
+    . TypeLits.natVal
 
 -- | Adds two intervals. Returns 'Nothing' if the result would overflow.
 --
