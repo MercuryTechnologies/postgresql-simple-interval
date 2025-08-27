@@ -394,9 +394,9 @@ negateSaturating x =
   let safeNegate :: (Bounded a, Integral a) => a -> a
       safeNegate = toIntegralSaturating . Prelude.negate . toInteger
    in MkInterval
-        (safeNegate (months x))
-        (safeNegate (days x))
-        (safeNegate (microseconds x))
+        (safeNegate $ months x)
+        (safeNegate $ days x)
+        (safeNegate $ microseconds x)
 
 -- | Adds two intervals. Returns 'Nothing' if the result would overflow.
 --
@@ -412,6 +412,21 @@ add x y =
         <$> Function.on safeAdd months x y
         <*> Function.on safeAdd days x y
         <*> Function.on safeAdd microseconds x y
+
+-- | Like 'add' but uses saturating arithmetic rather than returning 'Maybe'.
+--
+-- >>> addSaturating (fromMonths 1) (fromDays 2)
+-- MkInterval {months = 1, days = 2, microseconds = 0}
+-- >>> addSaturating (fromDays 2147483647) (fromDays 1)
+-- MkInterval {months = 0, days = 2147483647, microseconds = 0}
+addSaturating :: Interval -> Interval -> Interval
+addSaturating x y =
+  let safeAdd :: (Bounded a, Integral a) => a -> a -> a
+      safeAdd n = toIntegralSaturating . Function.on (+) toInteger n
+   in MkInterval
+        (Function.on safeAdd months x y)
+        (Function.on safeAdd days x y)
+        (Function.on safeAdd microseconds x y)
 
 -- | Renders an interval to a 'Builder'. This always has the same format:
 -- @"\@ A mon B day C hour D min E sec F us"@, where @A@, @B@, @C@, @D@, @E@,
