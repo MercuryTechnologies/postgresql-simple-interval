@@ -28,6 +28,10 @@ module Database.PostgreSQL.Simple.Interval
     Unstable.fromHoursLiteral,
     Unstable.fromWeeksLiteral,
     Unstable.fromYearsLiteral,
+
+    -- * Arithmetic
+    Unstable.negate,
+    Unstable.negateSaturating,
   )
 where
 

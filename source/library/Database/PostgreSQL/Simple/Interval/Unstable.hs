@@ -367,6 +367,37 @@ fromYearsLiteral =
     . fromInteger
     . TypeLits.natVal
 
+-- | Negates an interval. Returns 'Nothing' if the result would overflow.
+--
+-- >>> negate (MkInterval 1 2 3)
+-- Just (MkInterval {months = -1, days = -2, microseconds = -3})
+-- >>> negate (MkInterval (-2147483648) 0 0)
+-- Nothing
+negate :: Interval -> Maybe Interval
+negate x =
+  let safeNegate :: (Bits.Bits a, Integral a) => a -> Maybe a
+      safeNegate = Bits.toIntegralSized . Prelude.negate . toInteger
+   in MkInterval
+        <$> safeNegate (months x)
+        <*> safeNegate (days x)
+        <*> safeNegate (microseconds x)
+
+-- | Like 'Database.PostgreSQL.Simple.Interval.Unstable.negate' but uses
+-- saturating arithmetic rather than returning 'Maybe'.
+--
+-- >>> negateSaturating (MkInterval 1 2 3)
+-- MkInterval {months = -1, days = -2, microseconds = -3}
+-- >>> negateSaturating (MkInterval (-2147483648) 0 0)
+-- MkInterval {months = 2147483647, days = 0, microseconds = 0}
+negateSaturating :: Interval -> Interval
+negateSaturating x =
+  let safeNegate :: (Bounded a, Integral a) => a -> a
+      safeNegate = toIntegralSaturating . Prelude.negate . toInteger
+   in MkInterval
+        (safeNegate (months x))
+        (safeNegate (days x))
+        (safeNegate (microseconds x))
+
 -- | Adds two intervals. Returns 'Nothing' if the result would overflow.
 --
 -- >>> add (fromMonths 1) (fromDays 2)

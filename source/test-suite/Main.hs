@@ -176,6 +176,32 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "succeeds" $ do
       I.fromYearsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 12 0 0
 
+  H.describe "negate" $ do
+    H.it "succeeds with no overflow" $ do
+      I.negate (I.MkInterval 1 2 3) `H.shouldBe` Just (I.MkInterval (-1) (-2) (-3))
+
+    H.it "fails with month overflow" $ do
+      I.negate (I.MkInterval minBound 0 0) `H.shouldBe` Nothing
+
+    H.it "fails with day overflow" $ do
+      I.negate (I.MkInterval 0 minBound 0) `H.shouldBe` Nothing
+
+    H.it "fails with microsecond overflow" $ do
+      I.negate (I.MkInterval 0 0 minBound) `H.shouldBe` Nothing
+
+  H.describe "negateSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.negateSaturating (I.MkInterval 1 2 3) `H.shouldBe` I.MkInterval (-1) (-2) (-3)
+
+    H.it "succeeds with saturating month" $ do
+      I.negateSaturating (I.MkInterval minBound 0 0) `H.shouldBe` I.MkInterval maxBound 0 0
+
+    H.it "succeeds with saturating day" $ do
+      I.negateSaturating (I.MkInterval 0 minBound 0) `H.shouldBe` I.MkInterval 0 maxBound 0
+
+    H.it "succeeds with saturating microsecond" $ do
+      I.negateSaturating (I.MkInterval 0 0 minBound) `H.shouldBe` I.MkInterval 0 0 maxBound
+
   H.describe "render" $ do
     H.it "works with zero" $ do
       let actual = Builder.toLazyByteString $ I.render I.zero
