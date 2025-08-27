@@ -32,6 +32,8 @@ module Database.PostgreSQL.Simple.Interval
     -- * Arithmetic
     Unstable.negate,
     Unstable.negateSaturating,
+    Unstable.add,
+    Unstable.addSaturating,
   )
 where
 

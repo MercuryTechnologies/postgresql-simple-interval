@@ -56,6 +56,35 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       let actual = I.add (I.fromMicroseconds minBound) (I.fromMicroseconds (-1))
       actual `H.shouldBe` Nothing
 
+    H.describe "addSaturating" $ do
+      H.it "succeeds without saturating" $ do
+        let actual = I.addSaturating (I.MkInterval 1 2 3) (I.MkInterval 4 5 6)
+        actual `H.shouldBe` I.MkInterval 5 7 9
+
+      H.it "succeeds with saturating positive month" $ do
+        let actual = I.addSaturating (I.fromMonths maxBound) (I.fromMonths 1)
+        actual `H.shouldBe` I.MkInterval maxBound 0 0
+
+      H.it "succeeds with saturating negative month" $ do
+        let actual = I.addSaturating (I.fromMonths minBound) (I.fromMonths (-1))
+        actual `H.shouldBe` I.MkInterval minBound 0 0
+
+      H.it "succeeds with saturating positive day" $ do
+        let actual = I.addSaturating (I.fromDays maxBound) (I.fromDays 1)
+        actual `H.shouldBe` I.MkInterval 0 maxBound 0
+
+      H.it "succeeds with saturating negative day" $ do
+        let actual = I.addSaturating (I.fromDays minBound) (I.fromDays (-1))
+        actual `H.shouldBe` I.MkInterval 0 minBound 0
+
+      H.it "succeeds with saturating positive microsecond" $ do
+        let actual = I.addSaturating (I.fromMicroseconds maxBound) (I.fromMicroseconds 1)
+        actual `H.shouldBe` I.MkInterval 0 0 maxBound
+
+      H.it "succeeds with saturating negative microsecond" $ do
+        let actual = I.addSaturating (I.fromMicroseconds minBound) (I.fromMicroseconds (-1))
+        actual `H.shouldBe` I.MkInterval 0 0 minBound
+
   H.describe "fromMicroseconds" $ do
     H.it "works" $ do
       I.fromMicroseconds 1 `H.shouldBe` I.MkInterval 0 0 1
@@ -72,7 +101,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       I.fromMillisecondsSaturating 1 `H.shouldBe` I.MkInterval 0 0 1e3
 
     H.it "succeeds with saturating" $ do
-      I.fromMillisecondsSaturating 9223372036854776 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+      I.fromMillisecondsSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
   H.describe "fromMillisecondsLiteral" $ do
     H.it "succeeds" $ do
@@ -90,7 +119,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       I.fromSecondsSaturating 1 `H.shouldBe` I.MkInterval 0 0 1e6
 
     H.it "succeeds with saturating" $ do
-      I.fromSecondsSaturating 9223372036855 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+      I.fromSecondsSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
   H.describe "fromSecondsLiteral" $ do
     H.it "succeeds" $ do
@@ -108,7 +137,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       I.fromMinutesSaturating 1 `H.shouldBe` I.MkInterval 0 0 60e6
 
     H.it "succeeds with saturating" $ do
-      I.fromMinutesSaturating 153722867281 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+      I.fromMinutesSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
   H.describe "fromMinutesLiteral" $ do
     H.it "succeeds" $ do
@@ -126,7 +155,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       I.fromHoursSaturating 1 `H.shouldBe` I.MkInterval 0 0 3600e6
 
     H.it "succeeds with saturating" $ do
-      I.fromHoursSaturating 2562047789 `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+      I.fromHoursSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
 
   H.describe "fromHoursLiteral" $ do
     H.it "succeeds" $ do
@@ -148,7 +177,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       I.fromWeeksSaturating 1 `H.shouldBe` I.MkInterval 0 7 0
 
     H.it "succeeds with saturating" $ do
-      I.fromWeeksSaturating 306783379 `H.shouldBe` I.MkInterval 0 2147483647 0
+      I.fromWeeksSaturating maxBound `H.shouldBe` I.MkInterval 0 2147483647 0
 
   H.describe "fromWeeksLiteral" $ do
     H.it "succeeds" $ do
@@ -170,7 +199,7 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       I.fromYearsSaturating 1 `H.shouldBe` I.MkInterval 12 0 0
 
     H.it "succeeds with saturating" $ do
-      I.fromYearsSaturating 178956971 `H.shouldBe` I.MkInterval 2147483647 0 0
+      I.fromYearsSaturating maxBound `H.shouldBe` I.MkInterval 2147483647 0 0
 
   H.describe "fromYearsLiteral" $ do
     H.it "succeeds" $ do
