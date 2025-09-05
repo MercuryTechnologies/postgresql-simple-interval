@@ -15,10 +15,12 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Char8 as Ascii
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.Fixed as Fixed
 import qualified Data.Function as Function
 import qualified Data.Int as Int
 import qualified Data.Scientific as Scientific
 import qualified Data.Text as Text
+import qualified Data.Time as Time
 import qualified Database.Persist as Persist
 import qualified Database.Persist.Sql as Persist
 import qualified Database.PostgreSQL.Simple.FromField as Postgres
@@ -427,6 +429,67 @@ addSaturating x y =
         (Function.on safeAdd months x y)
         (Function.on safeAdd days x y)
         (Function.on safeAdd microseconds x y)
+
+-- | Converts an interval into types from the @time@ library. See 'fromTime'
+-- for the opposite conversion.
+--
+-- >>> intoTime (MkInterval 1 2 3)
+-- (P1M2D,0.000003s)
+intoTime :: Interval -> (Time.CalendarDiffDays, Time.NominalDiffTime)
+intoTime x =
+  ( Time.CalendarDiffDays
+      { Time.cdMonths = toInteger $ months x,
+        Time.cdDays = toInteger $ days x
+      },
+    Time.secondsToNominalDiffTime
+      . realToFrac
+      . intoMicro
+      . toInteger
+      $ microseconds x
+  )
+
+-- | Converts types from the @time@ library into an interval. See 'intoTime'
+-- for the opposite conversion.
+--
+-- >>> fromTime ('Time.CalendarDiffDays' 1 2) 3
+-- Just (MkInterval {months = 1, days = 2, microseconds = 3000000})
+--
+-- Returns 'Nothing' if the result would overflow. See 'fromTimeSaturating' for
+-- a version that uses saturating arithmetic instead.
+--
+-- >>> fromTime mempty 9223372036854.775808
+-- Nothing
+--
+-- Note that this truncates extra precision.
+--
+-- >>> fromTime mempty 0.0000009
+-- Just (MkInterval {months = 0, days = 0, microseconds = 0})
+fromTime :: Time.CalendarDiffDays -> Time.NominalDiffTime -> Maybe Interval
+fromTime x y =
+  MkInterval
+    <$> Bits.toIntegralSized (Time.cdMonths x)
+    <*> Bits.toIntegralSized (Time.cdDays x)
+    <*> Bits.toIntegralSized (fromMicro . realToFrac $ Time.nominalDiffTimeToSeconds y)
+
+-- | Like 'fromTime' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromTimeSaturating ('Time.CalendarDiffDays' 1 2) 3
+-- MkInterval {months = 1, days = 2, microseconds = 3000000}
+-- >>> fromTimeSaturating mempty 9223372036854.775808
+-- MkInterval {months = 1, days = 2, microseconds = 9223372036854775807}
+fromTimeSaturating :: Time.CalendarDiffDays -> Time.NominalDiffTime -> Interval
+fromTimeSaturating x y =
+  MkInterval
+    (toIntegralSaturating $ Time.cdMonths x)
+    (toIntegralSaturating $ Time.cdDays x)
+    (toIntegralSaturating . fromMicro . realToFrac $ Time.nominalDiffTimeToSeconds y)
+
+intoMicro :: Integer -> Fixed.Micro
+intoMicro = Fixed.MkFixed
+
+fromMicro :: Fixed.Micro -> Integer
+fromMicro (Fixed.MkFixed x) = x
 
 -- | Renders an interval to a 'Builder'. This always has the same format:
 -- @"\@ A mon B day C hour D min E sec F us"@, where @A@, @B@, @C@, @D@, @E@,
