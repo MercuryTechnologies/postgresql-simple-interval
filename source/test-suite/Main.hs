@@ -11,6 +11,7 @@ import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
 import qualified Data.Proxy as Proxy
+import qualified Data.Time as Time
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified Database.PostgreSQL.Simple as Postgres
 import qualified Database.PostgreSQL.Simple.Internal as Postgres
@@ -230,6 +231,42 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
 
     H.it "succeeds with saturating microsecond" $ do
       I.negateSaturating (I.MkInterval 0 0 minBound) `H.shouldBe` I.MkInterval 0 0 maxBound
+
+  H.describe "intoTime" $ do
+    H.it "works" $ do
+      I.intoTime (I.MkInterval 1 2 3) `H.shouldBe` (Time.CalendarDiffDays 1 2, 0.000003)
+
+  H.describe "fromTime" $ do
+    H.it "succeeds with no overflow" $ do
+      I.fromTime (Time.CalendarDiffDays 1 2) 0.000003 `H.shouldBe` Just (I.MkInterval 1 2 3)
+
+    H.it "truncates extra precision" $ do
+      I.fromTime mempty 0.0000009 `H.shouldBe` Just (I.MkInterval 0 0 0)
+
+    H.it "fails with microsecond overflow" $ do
+      I.fromTime mempty 9223372036854.775808 `H.shouldBe` Nothing
+
+    H.it "fails with day overflow" $ do
+      I.fromTime (Time.CalendarDiffDays 0 2147483648) 0 `H.shouldBe` Nothing
+
+    H.it "fails with month overflow" $ do
+      I.fromTime (Time.CalendarDiffDays 2147483648 0) 0 `H.shouldBe` Nothing
+
+  H.describe "fromTimeSaturating" $ do
+    H.it "works without saturating" $ do
+      I.fromTimeSaturating (Time.CalendarDiffDays 1 2) 0.000003 `H.shouldBe` I.MkInterval 1 2 3
+
+    H.it "truncates extra precision" $ do
+      I.fromTimeSaturating mempty 0.0000009 `H.shouldBe` I.MkInterval 0 0 0
+
+    H.it "works with saturating microseconds" $ do
+      I.fromTimeSaturating mempty 9223372036854.775808 `H.shouldBe` I.MkInterval 0 0 maxBound
+
+    H.it "works with saturating days" $ do
+      I.fromTimeSaturating (Time.CalendarDiffDays 0 2147483648) 0 `H.shouldBe` I.MkInterval 0 maxBound 0
+
+    H.it "works with saturating months" $ do
+      I.fromTimeSaturating (Time.CalendarDiffDays 2147483648 0) 0 `H.shouldBe` I.MkInterval maxBound 0 0
 
   H.describe "render" $ do
     H.it "works with zero" $ do
