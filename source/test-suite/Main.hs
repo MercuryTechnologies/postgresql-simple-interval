@@ -268,6 +268,110 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "works with saturating months" $ do
       I.fromTimeSaturating (Time.CalendarDiffDays 2147483648 0) 0 `H.shouldBe` I.MkInterval maxBound 0 0
 
+  H.describe "scale" $ do
+    H.describe "microseconds" $ do
+      H.it "scales up" $ do
+        I.scale 2 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 2)
+
+      H.it "scales down" $ do
+        I.scale 0.5 (I.MkInterval 0 0 2) `H.shouldBe` Just (I.MkInterval 0 0 1)
+
+      H.it "rounds down" $ do
+        I.scale 0.4 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 0)
+
+      H.it "rounds up" $ do
+        I.scale 0.6 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 1)
+
+      H.it "rounds half down to even" $ do
+        I.scale 0.5 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 0)
+
+      H.it "rounds half up to even" $ do
+        I.scale 0.5 (I.MkInterval 0 0 3) `H.shouldBe` Just (I.MkInterval 0 0 2)
+
+      H.it "fails with overflow" $ do
+        I.scale 2 (I.MkInterval 0 0 4611686018427387904) `H.shouldBe` Nothing
+
+    H.describe "days" $ do
+      H.it "scales up" $ do
+        I.scale 2 (I.MkInterval 0 1 0) `H.shouldBe` Just (I.MkInterval 0 2 0)
+
+      H.it "scales down" $ do
+        I.scale 0.5 (I.MkInterval 0 2 0) `H.shouldBe` Just (I.MkInterval 0 1 0)
+
+      H.it "converts fractional day into microseconds" $ do
+        I.scale 0.5 (I.MkInterval 0 1 0) `H.shouldBe` Just (I.MkInterval 0 0 43200000000)
+
+      H.it "fails with overflow" $ do
+        I.scale 2 (I.MkInterval 0 1073741824 0) `H.shouldBe` Nothing
+
+    H.describe "months" $ do
+      H.it "scales up" $ do
+        I.scale 2 (I.MkInterval 1 0 0) `H.shouldBe` Just (I.MkInterval 2 0 0)
+
+      H.it "scales down" $ do
+        I.scale 0.5 (I.MkInterval 2 0 0) `H.shouldBe` Just (I.MkInterval 1 0 0)
+
+      H.it "converts fractional month into days" $ do
+        I.scale 0.5 (I.MkInterval 1 0 0) `H.shouldBe` Just (I.MkInterval 0 15 0)
+
+      H.it "converts fractional month into days and microseconds" $ do
+        I.scaleSaturating 0.05 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 0 1 43200000000
+
+      H.it "fails with overflow" $ do
+        I.scale 2 (I.MkInterval 1073741824 0 0) `H.shouldBe` Nothing
+
+  H.describe "scaleSaturating" $ do
+    H.describe "microseconds" $ do
+      H.it "scales up" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 2
+
+      H.it "scales down" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 0 2) `H.shouldBe` I.MkInterval 0 0 1
+
+      H.it "rounds down" $ do
+        I.scaleSaturating 0.4 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 0
+
+      H.it "rounds up" $ do
+        I.scaleSaturating 0.6 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 1
+
+      H.it "rounds half down to even" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 0
+
+      H.it "rounds half up to even" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 0 3) `H.shouldBe` I.MkInterval 0 0 2
+
+      H.it "saturates with overflow" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 0 4611686018427387904) `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+    H.describe "days" $ do
+      H.it "scales up" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 1 0) `H.shouldBe` I.MkInterval 0 2 0
+
+      H.it "scales down" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 2 0) `H.shouldBe` I.MkInterval 0 1 0
+
+      H.it "converts fractional day into microseconds" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 1 0) `H.shouldBe` I.MkInterval 0 0 43200000000
+
+      H.it "saturates with overflow" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 1073741824 0) `H.shouldBe` I.MkInterval 0 2147483647 0
+
+    H.describe "months" $ do
+      H.it "scales up" $ do
+        I.scaleSaturating 2 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 2 0 0
+
+      H.it "scales down" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 2 0 0) `H.shouldBe` I.MkInterval 1 0 0
+
+      H.it "converts fractional month into days" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 0 15 0
+
+      H.it "converts fractional month into days and microseconds" $ do
+        I.scaleSaturating 0.05 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 0 1 43200000000
+
+      H.it "saturates with overflow" $ do
+        I.scaleSaturating 2 (I.MkInterval 1073741824 0 0) `H.shouldBe` I.MkInterval 2147483647 0 0
+
   H.describe "render" $ do
     H.it "works with zero" $ do
       let actual = Builder.toLazyByteString $ I.render I.zero

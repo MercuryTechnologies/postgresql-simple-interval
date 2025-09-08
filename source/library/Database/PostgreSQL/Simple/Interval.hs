@@ -37,12 +37,14 @@ module Database.PostgreSQL.Simple.Interval
     Unstable.fromTimeSaturating,
 
     -- * Arithmetic
-    Unstable.negate,
     Unstable.add,
+    Unstable.negate,
+    Unstable.scale,
 
     -- ** Saturating
-    Unstable.negateSaturating,
     Unstable.addSaturating,
+    Unstable.negateSaturating,
+    Unstable.scaleSaturating,
   )
 where
 
