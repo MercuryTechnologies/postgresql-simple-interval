@@ -376,13 +376,7 @@ fromYearsLiteral =
 -- >>> negate (MkInterval (-2147483648) 0 0)
 -- Nothing
 negate :: Interval -> Maybe Interval
-negate x =
-  let safeNegate :: (Bits.Bits a, Integral a) => a -> Maybe a
-      safeNegate = Bits.toIntegralSized . Prelude.negate . toInteger
-   in MkInterval
-        <$> safeNegate (months x)
-        <*> safeNegate (days x)
-        <*> safeNegate (microseconds x)
+negate = scale (-1)
 
 -- | Like 'Database.PostgreSQL.Simple.Interval.Unstable.negate' but uses
 -- saturating arithmetic rather than returning 'Maybe'.
@@ -392,13 +386,7 @@ negate x =
 -- >>> negateSaturating (MkInterval (-2147483648) 0 0)
 -- MkInterval {months = 2147483647, days = 0, microseconds = 0}
 negateSaturating :: Interval -> Interval
-negateSaturating x =
-  let safeNegate :: (Bounded a, Integral a) => a -> a
-      safeNegate = toIntegralSaturating . Prelude.negate . toInteger
-   in MkInterval
-        (safeNegate $ months x)
-        (safeNegate $ days x)
-        (safeNegate $ microseconds x)
+negateSaturating = scaleSaturating (-1)
 
 -- | Adds two intervals. Returns 'Nothing' if the result would overflow.
 --
@@ -490,6 +478,66 @@ intoMicro = Fixed.MkFixed
 
 fromMicro :: Fixed.Micro -> Integer
 fromMicro (Fixed.MkFixed x) = x
+
+-- | Scales an interval by the given ratio.
+--
+-- >>> scale 0.5 (MkInterval 2 4 8)
+-- Just (MkInterval {months = 1, days = 2, microseconds = 4})
+-- >>> scale 2 (MkInterval 2 4 8)
+-- Just (MkInterval {months = 4, days = 8, microseconds = 16})
+--
+-- Each component is rounded.
+--
+-- >>> scale 0.4 (MkInterval 0 0 1) -- rounds down
+-- Just (MkInterval {months = 0, days = 0, microseconds = 0})
+-- >>> scale 0.5 (MkInterval 0 0 1) -- rounds half to even
+-- Just (MkInterval {months = 0, days = 0, microseconds = 0})
+-- >>> scale 0.6 (MkInterval 0 0 1) -- rounds up
+-- Just (MkInterval {months = 0, days = 0, microseconds = 1})
+--
+-- Fractional days are converted into microseconds, assuming 24 hours per day.
+--
+-- >>> scale 0.5 (MkInterval 0 1 0)
+-- Just (MkInterval {months = 0, days = 0, microseconds = 43200000000})
+--
+-- Fractional months are converted into days, assuming 30 days per month. If
+-- this conversion produces fractional days, those are converted into
+-- microseconds.
+--
+-- >>> scale 0.5 (MkInterval 1 0 0)
+-- Just (MkInterval {months = 0, days = 15, microseconds = 0})
+-- >>> scale 0.05 (MkInterval 1 0 0)
+-- Just (MkInterval {months = 0, days = 1, microseconds = 43200000000})
+--
+-- Returns 'Nothing' if any component would overflow. See 'scaleSaturating' for
+-- a version that uses saturating arithmetic instead.
+--
+-- >>> scale 2 (MkInterval 0 0 4611686018427387904)
+-- Nothing
+scale :: Rational -> Interval -> Maybe Interval
+scale r i = do
+  let (m :: Integer, mf) = properFraction . (*) r . toRational $ months i
+  let (d :: Integer, uf) = properFraction . (+) (mf * 30) . (*) r . toRational $ days i
+  let u :: Integer = round . (+) (uf * 86400000000) . (*) r . toRational $ microseconds i
+  MkInterval
+    <$> Bits.toIntegralSized m
+    <*> Bits.toIntegralSized d
+    <*> Bits.toIntegralSized u
+
+-- | Like 'scale' but uses saturating arithmetic rather than returning
+-- 'Nothing' on overflow.
+--
+-- >>> scaleSaturating 2 (MkInterval 0 0 4611686018427387904)
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+scaleSaturating :: Rational -> Interval -> Interval
+scaleSaturating r i =
+  let (m :: Integer, mf) = properFraction . (*) r . toRational $ months i
+      (d :: Integer, uf) = properFraction . (+) (mf * 30) . (*) r . toRational $ days i
+      u :: Integer = round . (+) (uf * 86400000000) . (*) r . toRational $ microseconds i
+   in MkInterval
+        (toIntegralSaturating m)
+        (toIntegralSaturating d)
+        (toIntegralSaturating u)
 
 -- | Renders an interval to a 'Builder'. This always has the same format:
 -- @"\@ A mon B day C hour D min E sec F us"@, where @A@, @B@, @C@, @D@, @E@,
