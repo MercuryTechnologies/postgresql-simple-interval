@@ -500,12 +500,14 @@ fromMicro (Fixed.MkFixed x) = x
 -- >>> scale 0.5 (MkInterval 0 1 0)
 -- Just (MkInterval {months = 0, days = 0, microseconds = 43200000000})
 --
--- Fractional months are converted into days, assuming 30 days per month. If
--- this conversion produces fractional days, those are converted into
--- microseconds.
+-- Fractional months are converted into days, assuming 30 days per month.
 --
 -- >>> scale 0.5 (MkInterval 1 0 0)
 -- Just (MkInterval {months = 0, days = 15, microseconds = 0})
+--
+-- If this conversion produces fractional days, those are converted into
+-- microseconds.
+--
 -- >>> scale 0.05 (MkInterval 1 0 0)
 -- Just (MkInterval {months = 0, days = 1, microseconds = 43200000000})
 --
@@ -514,6 +516,14 @@ fromMicro (Fixed.MkFixed x) = x
 --
 -- >>> scale 2 (MkInterval 0 0 4611686018427387904)
 -- Nothing
+--
+-- Note that due to rounding and conversion, scaling down and then up will not
+-- necessarily return the original interval.
+--
+-- >>> fmap (scale 2) (scale 0.5 (MkInterval 0 0 1))
+-- Just (Just (MkInterval {months = 0, days = 0, microseconds = 0}))
+-- >>> fmap (scale 2) (scale 0.5 (MkInterval 1 0 0))
+-- Just (Just (MkInterval {months = 0, days = 30, microseconds = 0}))
 scale :: Rational -> Interval -> Maybe Interval
 scale r i = do
   let (m :: Integer, mf) = properFraction . (*) r . toRational $ months i
