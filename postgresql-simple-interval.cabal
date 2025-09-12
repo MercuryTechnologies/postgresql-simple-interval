@@ -28,7 +28,6 @@ common library
     base >=4.13 && <4.22,
     bytestring >=0.10.10 && <0.13,
     postgresql-simple ^>=0.7,
-    template-haskell >=2.15 && <2.24,
     time >=1.9.3 && <1.15,
 
   default-language: Haskell2010
@@ -65,6 +64,7 @@ library
   build-depends:
     persistent ^>=2.17,
     scientific ^>=0.3.8,
+    template-haskell >=2.15 && <2.24,
     text >=1.2.4 && <1.3 || >=2.0 && <2.2,
 
   -- cabal-gild: discover source/library
