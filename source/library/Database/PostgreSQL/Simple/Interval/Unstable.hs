@@ -602,10 +602,11 @@ parse =
 
 parseInfinities :: A.Parser Interval
 parseInfinities =
-  -- Both `-infinity` and `infinity` are new as of PostgreSQL 17.0.
+  -- `infinity` is new as of PostgreSQL 17.0.
   -- https://www.postgresql.org/message-id/E1r2rB1-005PHm-UL%40gemulon.postgresql.org
   A.choice
     [ MkInterval minBound minBound minBound <$ "-infinity",
+      MkInterval maxBound maxBound maxBound <$ "+infinity",
       MkInterval maxBound maxBound maxBound <$ "infinity"
     ]
 
