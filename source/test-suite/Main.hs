@@ -394,8 +394,12 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       let actual = Attoparsec.parseOnly I.parse "invalid"
       actual `H.shouldBe` Left "Failed reading: empty"
 
-    H.it "succeeds with positive infinity" $ do
+    H.it "succeeds with implicit positive infinity" $ do
       let actual = Attoparsec.parseOnly I.parse "infinity"
+      actual `H.shouldBe` Right (I.MkInterval maxBound maxBound maxBound)
+
+    H.it "succeeds with explicit positive infinity" $ do
+      let actual = Attoparsec.parseOnly I.parse "+infinity"
       actual `H.shouldBe` Right (I.MkInterval maxBound maxBound maxBound)
 
     H.it "succeeds with negative infinity" $ do
