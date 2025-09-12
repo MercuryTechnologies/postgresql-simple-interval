@@ -581,9 +581,7 @@ render x =
         <> " us"
 
 -- | Parses an interval. This is not a general purpose parser. It only supports
--- the formats that PostgreSQL generates. For example, it will fail to parse an
--- interval like @"1 week"@ because PostgreSQL never uses weeks when rendering
--- intervals.
+-- the formats that PostgreSQL generates.
 parse :: A.Parser Interval
 parse =
   -- Start with parsers that have non-empty prefixes, in order to avoid
@@ -636,6 +634,7 @@ parsePostgresVerbose = do
     flip A.sepBy " " $
       A.choice
         [ Years <$> A.signed A.decimal <* maybePlural " year",
+          Weeks <$> A.signed A.decimal <* maybePlural " week",
           Months <$> A.signed A.decimal <* maybePlural " mon",
           Days <$> A.signed A.decimal <* maybePlural " day",
           Hours <$> A.signed A.decimal <* maybePlural " hour",
@@ -652,6 +651,7 @@ parsePostgres = do
     flip A.sepBy " " $
       A.choice
         [ Years <$> A.signed A.decimal <* maybePlural " year",
+          Weeks <$> A.signed A.decimal <* maybePlural " week",
           Months <$> A.signed A.decimal <* maybePlural " mon",
           Days <$> A.signed A.decimal <* maybePlural " day"
         ]
@@ -688,6 +688,7 @@ maybePlural word = (<>) <$> A.string word <*> A.option "" "s"
 -- are accepted, like years and months.
 data Component
   = Years !Integer
+  | Weeks !Integer
   | Months !Integer
   | Days !Integer
   | Hours !Integer
@@ -701,6 +702,7 @@ data Component
 fromComponent :: Component -> Maybe Interval
 fromComponent c = case c of
   Years y -> fromYears =<< Bits.toIntegralSized y
+  Weeks w -> fromWeeks =<< Bits.toIntegralSized w
   Months m -> fromMonths <$> Bits.toIntegralSized m
   Days d -> fromDays <$> Bits.toIntegralSized d
   Hours h -> fromHours =<< Bits.toIntegralSized h
@@ -722,6 +724,7 @@ fromComponents =
 negateComponent :: Component -> Component
 negateComponent c = case c of
   Years y -> Years (-y)
+  Weeks w -> Weeks (-w)
   Months m -> Months (-m)
   Days d -> Days (-d)
   Hours h -> Hours (-h)

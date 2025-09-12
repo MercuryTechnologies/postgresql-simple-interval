@@ -402,6 +402,27 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       let actual = Attoparsec.parseOnly I.parse "-infinity"
       actual `H.shouldBe` Right (I.MkInterval minBound minBound minBound)
 
+    H.describe "weeks" $ do
+      H.it "succeeds with zero" $ do
+        let actual = Attoparsec.parseOnly I.parse "0 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 0 0)
+
+      H.it "succeeds with implicit positive" $ do
+        let actual = Attoparsec.parseOnly I.parse "1 week"
+        actual `H.shouldBe` Right (I.MkInterval 0 7 0)
+
+      H.it "succeeds with explicit positive" $ do
+        let actual = Attoparsec.parseOnly I.parse "+2 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 14 0)
+
+      H.it "succeeds with negative" $ do
+        let actual = Attoparsec.parseOnly I.parse "-3 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 (-21) 0)
+
+      H.it "succeeds with verbose" $ do
+        let actual = Attoparsec.parseOnly I.parse "@ 4 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 28 0)
+
     Monad.forM_ intervalStyles $ \(_, field) ->
       Monad.forM_ examples $ \example -> do
         let input = field example
