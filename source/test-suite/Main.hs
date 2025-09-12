@@ -419,6 +419,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
         let actual = Attoparsec.parseOnly I.parse "-3 weeks"
         actual `H.shouldBe` Right (I.MkInterval 0 (-21) 0)
 
+      H.it "succeeds with verbose" $ do
+        let actual = Attoparsec.parseOnly I.parse "@ 4 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 28 0)
+
     Monad.forM_ intervalStyles $ \(_, field) ->
       Monad.forM_ examples $ \example -> do
         let input = field example
