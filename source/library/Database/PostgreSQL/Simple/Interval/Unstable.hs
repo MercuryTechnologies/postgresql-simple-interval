@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,6 +28,7 @@ import qualified Database.PostgreSQL.Simple.FromField as Postgres
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Database.PostgreSQL.Simple.TypeInfo.Static as Postgres
 import qualified GHC.TypeLits as TypeLits
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- | This type represents a PostgreSQL interval. Intervals can have month, day,
 -- and microsecond components. Each component is bounded, so they are not
@@ -53,7 +55,7 @@ data Interval = MkInterval
     days :: !Int.Int32,
     microseconds :: !Int.Int64
   }
-  deriving (Eq, Show)
+  deriving (Eq, TH.Lift, Show)
 
 -- | Uses 'parse'. Ensures that the OID is 'Postgres.intervalOid'.
 instance Postgres.FromField Interval where
