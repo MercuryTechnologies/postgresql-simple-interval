@@ -28,6 +28,14 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "works" $ do
       I.zero `H.shouldBe` I.MkInterval 0 0 0
 
+  H.describe "infinity" $ do
+    H.it "works" $ do
+      I.infinity `H.shouldBe` I.MkInterval maxBound maxBound maxBound
+
+  H.describe "negativeInfinity" $ do
+    H.it "works" $ do
+      I.negativeInfinity `H.shouldBe` I.MkInterval minBound minBound minBound
+
   H.describe "add" $ do
     H.it "succeeds with no overflow" $ do
       let actual = I.add (I.MkInterval 1 2 3) (I.MkInterval 4 5 6)

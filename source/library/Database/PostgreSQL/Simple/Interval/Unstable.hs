@@ -98,6 +98,20 @@ instance Persist.PersistFieldSql Interval where
 zero :: Interval
 zero = MkInterval 0 0 0
 
+-- | The biggest possible interval.
+--
+-- >>> infinity
+-- MkInterval {months = 2147483647, days = 2147483647, microseconds = 9223372036854775807}
+infinity :: Interval
+infinity = MkInterval maxBound maxBound maxBound
+
+-- | The smallest possible interval.
+--
+-- >>> negativeInfinity
+-- MkInterval {months = -2147483648, days = -2147483648, microseconds = -9223372036854775808}
+negativeInfinity :: Interval
+negativeInfinity = MkInterval minBound minBound minBound
+
 -- | Creates an interval from a number of microseconds.
 --
 -- >>> fromMicroseconds 1
@@ -605,9 +619,9 @@ parseInfinities =
   -- `infinity` is new as of PostgreSQL 17.0.
   -- https://www.postgresql.org/message-id/E1r2rB1-005PHm-UL%40gemulon.postgresql.org
   A.choice
-    [ MkInterval minBound minBound minBound <$ "-infinity",
-      MkInterval maxBound maxBound maxBound <$ "+infinity",
-      MkInterval maxBound maxBound maxBound <$ "infinity"
+    [ negativeInfinity <$ "-infinity",
+      infinity <$ "+infinity",
+      infinity <$ "infinity"
     ]
 
 parseIso8601 :: A.Parser [Component]
