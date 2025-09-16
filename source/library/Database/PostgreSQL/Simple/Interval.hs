@@ -3,6 +3,8 @@ module Database.PostgreSQL.Simple.Interval
 
     -- * Construction
     Unstable.zero,
+    Unstable.infinity,
+    Unstable.negativeInfinity,
     Unstable.fromMicroseconds,
     Unstable.fromMilliseconds,
     Unstable.fromSeconds,
