@@ -78,7 +78,7 @@ jobs:
           path: ~/.local/state/cabal
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
       - run: cabal build --only-download
-      - uses: ikalnytskyi/action-setup-postgres@10ab8a56cc77b4823c2bfa57b1d4dd5605ef0481 # v7
+      - uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
         with:
           postgres-version: ${{ matrix.postgres }}
       - run: cabal build --only-dependencies
