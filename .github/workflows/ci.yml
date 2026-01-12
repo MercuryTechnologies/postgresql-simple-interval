@@ -57,6 +57,8 @@ jobs:
     env:
       # Use short builddir on Windows to avoid MAX_PATH (260 char) limitations
       BUILDDIR: ${{ matrix.os == 'windows' && 'C:/b' || 'dist-newstyle' }}
+      DOCUMENTATION: ${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }}
+      WINDOWS_FLAGS: ${{ matrix.os == 'windows' && '--constraint="postgresql-libpq +use-pkg-config"' || '' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: mkdir artifact
@@ -66,8 +68,6 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
-
-      # Set up PostgreSQL server
       - uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
         with:
           postgres-version: ${{ matrix.postgres }}
@@ -87,12 +87,7 @@ jobs:
           echo "$pgBin" >> $env:GITHUB_PATH
           echo "PKG_CONFIG_PATH=$env:GHCUP_MSYS2\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
 
-      - name: Cabal configure
-        shell: bash
-        run: |
-          DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }}
-          WINDOWS_FLAGS=${{ matrix.os == 'windows' && '--constraint="postgresql-libpq +use-pkg-config"' || '' }}
-          cabal configure --builddir=$BUILDDIR $DOCUMENTATION --enable-tests --flags=pedantic $WINDOWS_FLAGS --jobs
+      - run: cabal configure --builddir=$BUILDDIR $DOCUMENTATION --enable-tests --flags=pedantic $WINDOWS_FLAGS --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
