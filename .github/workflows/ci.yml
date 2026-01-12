@@ -54,6 +54,9 @@ jobs:
     name: GHC ${{ matrix.ghc }} on ${{ matrix.os }} with PostgreSQL ${{ matrix.postgres }}
     needs: meta
     runs-on: ${{ matrix.os }}-latest
+    env:
+      # Use short builddir on Windows to avoid MAX_PATH (260 char) limitations
+      BUILDDIR: ${{ matrix.os == 'windows' && 'C:/b' || 'dist-newstyle' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: mkdir artifact
@@ -63,47 +66,33 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
-      # Set up PostgreSQL server on Windows (needed for running tests)
-      - if: runner.os == 'Windows'
-        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
+
+      # Set up PostgreSQL server
+      - uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
         with:
           postgres-version: ${{ matrix.postgres }}
-      # On Windows, install MSYS2's libpq which provides MinGW-compatible libraries
+
+      # Windows: Install MSYS2's libpq which provides MinGW-compatible libraries
       # The Windows PostgreSQL installer provides MSVC libraries which don't link with GHC's MinGW toolchain
       - if: runner.os == 'Windows'
         name: Install MSYS2 PostgreSQL client library
         shell: pwsh
         run: |
-          # Install MSYS2 PostgreSQL client library and pkg-config
           & "$env:GHCUP_MSYS2\usr\bin\bash.exe" -lc "pacman -S --noconfirm mingw-w64-x86_64-postgresql mingw-w64-x86_64-pkgconf"
-
-          # Remove Strawberry Perl from PATH to avoid its broken pkg-config
           $newPath = ($env:PATH.Split(';') | Where-Object { $_ -notlike '*Strawberry*' }) -join ';'
-
-          # Add MSYS2 mingw64 bin to PATH (for pkg-config and libpq DLLs)
           $msys2Bin = "$env:GHCUP_MSYS2\mingw64\bin"
-          $newPath = "$msys2Bin;$newPath"
-
-          # Also add the PostgreSQL server bin for runtime (psql, etc.)
           $pgBin = "C:\Program Files\PostgreSQL\${{ matrix.postgres }}\bin"
-          $newPath = "$pgBin;$newPath"
-
-          echo "PATH=$newPath" >> $env:GITHUB_ENV
+          echo "PATH=$msys2Bin;$pgBin;$newPath" >> $env:GITHUB_ENV
           echo "$msys2Bin" >> $env:GITHUB_PATH
           echo "$pgBin" >> $env:GITHUB_PATH
+          echo "PKG_CONFIG_PATH=$env:GHCUP_MSYS2\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
 
-          # Set PKG_CONFIG_PATH to find libpq.pc from MSYS2
-          $pcDir = "$env:GHCUP_MSYS2\mingw64\lib\pkgconfig"
-          echo "PKG_CONFIG_PATH=$pcDir" >> $env:GITHUB_ENV
-      - run: echo DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
+      - name: Cabal configure
         shell: bash
-      # Configure cabal - use pkg-config flag on Windows to use MSYS2's libpq
-      # Also use a short builddir on Windows to avoid MAX_PATH (260 char) limitations
-      - if: runner.os == 'Windows'
-        name: Cabal configure (Windows)
-        run: cabal configure --builddir=C:/b --enable-tests --flags=pedantic --constraint="postgresql-libpq +use-pkg-config" --jobs
-      - if: runner.os != 'Windows'
-        run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
+        run: |
+          DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }}
+          WINDOWS_FLAGS=${{ matrix.os == 'windows' && '--constraint="postgresql-libpq +use-pkg-config"' || '' }}
+          cabal configure --builddir=$BUILDDIR $DOCUMENTATION --enable-tests --flags=pedantic $WINDOWS_FLAGS --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
@@ -116,37 +105,17 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
           path: ~/.local/state/cabal
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
-      # Use short builddir on Windows to avoid MAX_PATH limitations
-      - if: runner.os == 'Windows'
-        run: cabal build --builddir=C:/b --only-download
-      - if: runner.os != 'Windows'
-        run: cabal build --only-download
-      # Set up PostgreSQL on non-Windows after download (to minimize wait time)
-      - if: runner.os != 'Windows'
-        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
-        with:
-          postgres-version: ${{ matrix.postgres }}
-      - if: runner.os == 'Windows'
-        run: cabal build --builddir=C:/b --only-dependencies
-      - if: runner.os != 'Windows'
-        run: cabal build --only-dependencies
-      - if: runner.os == 'Windows'
-        run: cabal build --builddir=C:/b
-      - if: runner.os != 'Windows'
-        run: cabal build
-      - if: ${{ env.DOCUMENTATION }}
-        run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
+      - run: cabal build --only-download
+      - run: cabal build --only-dependencies
+      - run: cabal build
+      - if: ${{ matrix.documentation }}
+        run: cp $BUILDDIR/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
       - run: tar --create --file artifact.tar --verbose artifact
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: postgresql-simple-interval-${{ github.sha }}-${{ matrix.os }}-${{ matrix.ghc }}-${{ matrix.postgres }}
           path: artifact.tar
-      - if: runner.os == 'Windows'
-        env:
-          PGPASSWORD: postgres
-        run: cabal run --builddir=C:/b -- postgresql-simple-interval-test-suite --randomize
-      - if: runner.os != 'Windows'
-        env:
+      - env:
           PGPASSWORD: postgres
         run: cabal run -- postgresql-simple-interval-test-suite --randomize
     strategy:
