@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
@@ -8,6 +10,8 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
+import qualified Data.Proxy as Proxy
+import qualified Data.Time as Time
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified Database.PostgreSQL.Simple as Postgres
 import qualified Database.PostgreSQL.Simple.Internal as Postgres
@@ -23,6 +27,14 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
   H.describe "zero" $ do
     H.it "works" $ do
       I.zero `H.shouldBe` I.MkInterval 0 0 0
+
+  H.describe "infinity" $ do
+    H.it "works" $ do
+      I.infinity `H.shouldBe` I.MkInterval maxBound maxBound maxBound
+
+  H.describe "negativeInfinity" $ do
+    H.it "works" $ do
+      I.negativeInfinity `H.shouldBe` I.MkInterval minBound minBound minBound
 
   H.describe "add" $ do
     H.it "succeeds with no overflow" $ do
@@ -53,6 +65,35 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       let actual = I.add (I.fromMicroseconds minBound) (I.fromMicroseconds (-1))
       actual `H.shouldBe` Nothing
 
+    H.describe "addSaturating" $ do
+      H.it "succeeds without saturating" $ do
+        let actual = I.addSaturating (I.MkInterval 1 2 3) (I.MkInterval 4 5 6)
+        actual `H.shouldBe` I.MkInterval 5 7 9
+
+      H.it "succeeds with saturating positive month" $ do
+        let actual = I.addSaturating (I.fromMonths maxBound) (I.fromMonths 1)
+        actual `H.shouldBe` I.MkInterval maxBound 0 0
+
+      H.it "succeeds with saturating negative month" $ do
+        let actual = I.addSaturating (I.fromMonths minBound) (I.fromMonths (-1))
+        actual `H.shouldBe` I.MkInterval minBound 0 0
+
+      H.it "succeeds with saturating positive day" $ do
+        let actual = I.addSaturating (I.fromDays maxBound) (I.fromDays 1)
+        actual `H.shouldBe` I.MkInterval 0 maxBound 0
+
+      H.it "succeeds with saturating negative day" $ do
+        let actual = I.addSaturating (I.fromDays minBound) (I.fromDays (-1))
+        actual `H.shouldBe` I.MkInterval 0 minBound 0
+
+      H.it "succeeds with saturating positive microsecond" $ do
+        let actual = I.addSaturating (I.fromMicroseconds maxBound) (I.fromMicroseconds 1)
+        actual `H.shouldBe` I.MkInterval 0 0 maxBound
+
+      H.it "succeeds with saturating negative microsecond" $ do
+        let actual = I.addSaturating (I.fromMicroseconds minBound) (I.fromMicroseconds (-1))
+        actual `H.shouldBe` I.MkInterval 0 0 minBound
+
   H.describe "fromMicroseconds" $ do
     H.it "works" $ do
       I.fromMicroseconds 1 `H.shouldBe` I.MkInterval 0 0 1
@@ -64,12 +105,34 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "fails with overflow" $ do
       I.fromMilliseconds maxBound `H.shouldBe` Nothing
 
+  H.describe "fromMillisecondsSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromMillisecondsSaturating 1 `H.shouldBe` I.MkInterval 0 0 1e3
+
+    H.it "succeeds with saturating" $ do
+      I.fromMillisecondsSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+  H.describe "fromMillisecondsLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromMillisecondsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 1e3
+
   H.describe "fromSeconds" $ do
     H.it "succeeds with no overflow" $ do
       I.fromSeconds 1 `H.shouldBe` Just (I.MkInterval 0 0 1e6)
 
     H.it "fails with overflow" $ do
       I.fromSeconds maxBound `H.shouldBe` Nothing
+
+  H.describe "fromSecondsSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromSecondsSaturating 1 `H.shouldBe` I.MkInterval 0 0 1e6
+
+    H.it "succeeds with saturating" $ do
+      I.fromSecondsSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+  H.describe "fromSecondsLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromSecondsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 1e6
 
   H.describe "fromMinutes" $ do
     H.it "succeeds with no overflow" $ do
@@ -78,12 +141,34 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "fails with overflow" $ do
       I.fromMinutes maxBound `H.shouldBe` Nothing
 
+  H.describe "fromMinutesSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromMinutesSaturating 1 `H.shouldBe` I.MkInterval 0 0 60e6
+
+    H.it "succeeds with saturating" $ do
+      I.fromMinutesSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+  H.describe "fromMinutesLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromMinutesLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 60e6
+
   H.describe "fromHours" $ do
     H.it "succeeds with no overflow" $ do
       I.fromHours 1 `H.shouldBe` Just (I.MkInterval 0 0 3600e6)
 
     H.it "fails with overflow" $ do
       I.fromHours maxBound `H.shouldBe` Nothing
+
+  H.describe "fromHoursSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromHoursSaturating 1 `H.shouldBe` I.MkInterval 0 0 3600e6
+
+    H.it "succeeds with saturating" $ do
+      I.fromHoursSaturating maxBound `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+  H.describe "fromHoursLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromHoursLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 0 3600e6
 
   H.describe "fromDays" $ do
     H.it "works" $ do
@@ -96,6 +181,17 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
     H.it "fails with overflow" $ do
       I.fromWeeks maxBound `H.shouldBe` Nothing
 
+  H.describe "fromWeeksSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromWeeksSaturating 1 `H.shouldBe` I.MkInterval 0 7 0
+
+    H.it "succeeds with saturating" $ do
+      I.fromWeeksSaturating maxBound `H.shouldBe` I.MkInterval 0 2147483647 0
+
+  H.describe "fromWeeksLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromWeeksLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 0 7 0
+
   H.describe "fromMonths" $ do
     H.it "works" $ do
       I.fromMonths 1 `H.shouldBe` I.MkInterval 1 0 0
@@ -106,6 +202,183 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
 
     H.it "fails with overflow" $ do
       I.fromYears maxBound `H.shouldBe` Nothing
+
+  H.describe "fromYearsSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.fromYearsSaturating 1 `H.shouldBe` I.MkInterval 12 0 0
+
+    H.it "succeeds with saturating" $ do
+      I.fromYearsSaturating maxBound `H.shouldBe` I.MkInterval 2147483647 0 0
+
+  H.describe "fromYearsLiteral" $ do
+    H.it "succeeds" $ do
+      I.fromYearsLiteral @1 Proxy.Proxy `H.shouldBe` I.MkInterval 12 0 0
+
+  H.describe "negate" $ do
+    H.it "succeeds with no overflow" $ do
+      I.negate (I.MkInterval 1 2 3) `H.shouldBe` Just (I.MkInterval (-1) (-2) (-3))
+
+    H.it "fails with month overflow" $ do
+      I.negate (I.MkInterval minBound 0 0) `H.shouldBe` Nothing
+
+    H.it "fails with day overflow" $ do
+      I.negate (I.MkInterval 0 minBound 0) `H.shouldBe` Nothing
+
+    H.it "fails with microsecond overflow" $ do
+      I.negate (I.MkInterval 0 0 minBound) `H.shouldBe` Nothing
+
+  H.describe "negateSaturating" $ do
+    H.it "succeeds without saturating" $ do
+      I.negateSaturating (I.MkInterval 1 2 3) `H.shouldBe` I.MkInterval (-1) (-2) (-3)
+
+    H.it "succeeds with saturating month" $ do
+      I.negateSaturating (I.MkInterval minBound 0 0) `H.shouldBe` I.MkInterval maxBound 0 0
+
+    H.it "succeeds with saturating day" $ do
+      I.negateSaturating (I.MkInterval 0 minBound 0) `H.shouldBe` I.MkInterval 0 maxBound 0
+
+    H.it "succeeds with saturating microsecond" $ do
+      I.negateSaturating (I.MkInterval 0 0 minBound) `H.shouldBe` I.MkInterval 0 0 maxBound
+
+  H.describe "intoTime" $ do
+    H.it "works" $ do
+      I.intoTime (I.MkInterval 1 2 3) `H.shouldBe` (Time.CalendarDiffDays 1 2, 0.000003)
+
+  H.describe "fromTime" $ do
+    H.it "succeeds with no overflow" $ do
+      I.fromTime (Time.CalendarDiffDays 1 2) 0.000003 `H.shouldBe` Just (I.MkInterval 1 2 3)
+
+    H.it "truncates extra precision" $ do
+      I.fromTime mempty 0.0000009 `H.shouldBe` Just (I.MkInterval 0 0 0)
+
+    H.it "fails with microsecond overflow" $ do
+      I.fromTime mempty 9223372036854.775808 `H.shouldBe` Nothing
+
+    H.it "fails with day overflow" $ do
+      I.fromTime (Time.CalendarDiffDays 0 2147483648) 0 `H.shouldBe` Nothing
+
+    H.it "fails with month overflow" $ do
+      I.fromTime (Time.CalendarDiffDays 2147483648 0) 0 `H.shouldBe` Nothing
+
+  H.describe "fromTimeSaturating" $ do
+    H.it "works without saturating" $ do
+      I.fromTimeSaturating (Time.CalendarDiffDays 1 2) 0.000003 `H.shouldBe` I.MkInterval 1 2 3
+
+    H.it "truncates extra precision" $ do
+      I.fromTimeSaturating mempty 0.0000009 `H.shouldBe` I.MkInterval 0 0 0
+
+    H.it "works with saturating microseconds" $ do
+      I.fromTimeSaturating mempty 9223372036854.775808 `H.shouldBe` I.MkInterval 0 0 maxBound
+
+    H.it "works with saturating days" $ do
+      I.fromTimeSaturating (Time.CalendarDiffDays 0 2147483648) 0 `H.shouldBe` I.MkInterval 0 maxBound 0
+
+    H.it "works with saturating months" $ do
+      I.fromTimeSaturating (Time.CalendarDiffDays 2147483648 0) 0 `H.shouldBe` I.MkInterval maxBound 0 0
+
+  H.describe "scale" $ do
+    H.describe "microseconds" $ do
+      H.it "scales up" $ do
+        I.scale 2 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 2)
+
+      H.it "scales down" $ do
+        I.scale 0.5 (I.MkInterval 0 0 2) `H.shouldBe` Just (I.MkInterval 0 0 1)
+
+      H.it "rounds down" $ do
+        I.scale 0.4 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 0)
+
+      H.it "rounds up" $ do
+        I.scale 0.6 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 1)
+
+      H.it "rounds half down to even" $ do
+        I.scale 0.5 (I.MkInterval 0 0 1) `H.shouldBe` Just (I.MkInterval 0 0 0)
+
+      H.it "rounds half up to even" $ do
+        I.scale 0.5 (I.MkInterval 0 0 3) `H.shouldBe` Just (I.MkInterval 0 0 2)
+
+      H.it "fails with overflow" $ do
+        I.scale 2 (I.MkInterval 0 0 4611686018427387904) `H.shouldBe` Nothing
+
+    H.describe "days" $ do
+      H.it "scales up" $ do
+        I.scale 2 (I.MkInterval 0 1 0) `H.shouldBe` Just (I.MkInterval 0 2 0)
+
+      H.it "scales down" $ do
+        I.scale 0.5 (I.MkInterval 0 2 0) `H.shouldBe` Just (I.MkInterval 0 1 0)
+
+      H.it "converts fractional day into microseconds" $ do
+        I.scale 0.5 (I.MkInterval 0 1 0) `H.shouldBe` Just (I.MkInterval 0 0 43200000000)
+
+      H.it "fails with overflow" $ do
+        I.scale 2 (I.MkInterval 0 1073741824 0) `H.shouldBe` Nothing
+
+    H.describe "months" $ do
+      H.it "scales up" $ do
+        I.scale 2 (I.MkInterval 1 0 0) `H.shouldBe` Just (I.MkInterval 2 0 0)
+
+      H.it "scales down" $ do
+        I.scale 0.5 (I.MkInterval 2 0 0) `H.shouldBe` Just (I.MkInterval 1 0 0)
+
+      H.it "converts fractional month into days" $ do
+        I.scale 0.5 (I.MkInterval 1 0 0) `H.shouldBe` Just (I.MkInterval 0 15 0)
+
+      H.it "converts fractional month into days and microseconds" $ do
+        I.scaleSaturating 0.05 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 0 1 43200000000
+
+      H.it "fails with overflow" $ do
+        I.scale 2 (I.MkInterval 1073741824 0 0) `H.shouldBe` Nothing
+
+  H.describe "scaleSaturating" $ do
+    H.describe "microseconds" $ do
+      H.it "scales up" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 2
+
+      H.it "scales down" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 0 2) `H.shouldBe` I.MkInterval 0 0 1
+
+      H.it "rounds down" $ do
+        I.scaleSaturating 0.4 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 0
+
+      H.it "rounds up" $ do
+        I.scaleSaturating 0.6 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 1
+
+      H.it "rounds half down to even" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 0 1) `H.shouldBe` I.MkInterval 0 0 0
+
+      H.it "rounds half up to even" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 0 3) `H.shouldBe` I.MkInterval 0 0 2
+
+      H.it "saturates with overflow" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 0 4611686018427387904) `H.shouldBe` I.MkInterval 0 0 9223372036854775807
+
+    H.describe "days" $ do
+      H.it "scales up" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 1 0) `H.shouldBe` I.MkInterval 0 2 0
+
+      H.it "scales down" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 2 0) `H.shouldBe` I.MkInterval 0 1 0
+
+      H.it "converts fractional day into microseconds" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 0 1 0) `H.shouldBe` I.MkInterval 0 0 43200000000
+
+      H.it "saturates with overflow" $ do
+        I.scaleSaturating 2 (I.MkInterval 0 1073741824 0) `H.shouldBe` I.MkInterval 0 2147483647 0
+
+    H.describe "months" $ do
+      H.it "scales up" $ do
+        I.scaleSaturating 2 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 2 0 0
+
+      H.it "scales down" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 2 0 0) `H.shouldBe` I.MkInterval 1 0 0
+
+      H.it "converts fractional month into days" $ do
+        I.scaleSaturating 0.5 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 0 15 0
+
+      H.it "converts fractional month into days and microseconds" $ do
+        I.scaleSaturating 0.05 (I.MkInterval 1 0 0) `H.shouldBe` I.MkInterval 0 1 43200000000
+
+      H.it "saturates with overflow" $ do
+        I.scaleSaturating 2 (I.MkInterval 1073741824 0 0) `H.shouldBe` I.MkInterval 2147483647 0 0
 
   H.describe "render" $ do
     H.it "works with zero" $ do
@@ -129,13 +402,38 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
       let actual = Attoparsec.parseOnly I.parse "invalid"
       actual `H.shouldBe` Left "Failed reading: empty"
 
-    H.it "succeeds with positive infinity" $ do
+    H.it "succeeds with implicit positive infinity" $ do
       let actual = Attoparsec.parseOnly I.parse "infinity"
+      actual `H.shouldBe` Right (I.MkInterval maxBound maxBound maxBound)
+
+    H.it "succeeds with explicit positive infinity" $ do
+      let actual = Attoparsec.parseOnly I.parse "+infinity"
       actual `H.shouldBe` Right (I.MkInterval maxBound maxBound maxBound)
 
     H.it "succeeds with negative infinity" $ do
       let actual = Attoparsec.parseOnly I.parse "-infinity"
       actual `H.shouldBe` Right (I.MkInterval minBound minBound minBound)
+
+    H.describe "weeks" $ do
+      H.it "succeeds with zero" $ do
+        let actual = Attoparsec.parseOnly I.parse "0 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 0 0)
+
+      H.it "succeeds with implicit positive" $ do
+        let actual = Attoparsec.parseOnly I.parse "1 week"
+        actual `H.shouldBe` Right (I.MkInterval 0 7 0)
+
+      H.it "succeeds with explicit positive" $ do
+        let actual = Attoparsec.parseOnly I.parse "+2 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 14 0)
+
+      H.it "succeeds with negative" $ do
+        let actual = Attoparsec.parseOnly I.parse "-3 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 (-21) 0)
+
+      H.it "succeeds with verbose" $ do
+        let actual = Attoparsec.parseOnly I.parse "@ 4 weeks"
+        actual `H.shouldBe` Right (I.MkInterval 0 28 0)
 
     Monad.forM_ intervalStyles $ \(_, field) ->
       Monad.forM_ examples $ \example -> do

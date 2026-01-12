@@ -1,5 +1,10 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE NumDecimals #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Database.PostgreSQL.Simple.Interval.Unstable where
 
@@ -11,15 +16,19 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Char8 as Ascii
 import qualified Data.ByteString.Lazy as LazyByteString
+import qualified Data.Fixed as Fixed
 import qualified Data.Function as Function
 import qualified Data.Int as Int
 import qualified Data.Scientific as Scientific
 import qualified Data.Text as Text
+import qualified Data.Time as Time
 import qualified Database.Persist as Persist
 import qualified Database.Persist.Sql as Persist
 import qualified Database.PostgreSQL.Simple.FromField as Postgres
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Database.PostgreSQL.Simple.TypeInfo.Static as Postgres
+import qualified GHC.TypeLits as TypeLits
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- | This type represents a PostgreSQL interval. Intervals can have month, day,
 -- and microsecond components. Each component is bounded, so they are not
@@ -46,7 +55,7 @@ data Interval = MkInterval
     days :: !Int.Int32,
     microseconds :: !Int.Int64
   }
-  deriving (Eq, Show)
+  deriving (Eq, TH.Lift, Show)
 
 -- | Uses 'parse'. Ensures that the OID is 'Postgres.intervalOid'.
 instance Postgres.FromField Interval where
@@ -89,6 +98,20 @@ instance Persist.PersistFieldSql Interval where
 zero :: Interval
 zero = MkInterval 0 0 0
 
+-- | The biggest possible interval.
+--
+-- >>> infinity
+-- MkInterval {months = 2147483647, days = 2147483647, microseconds = 9223372036854775807}
+infinity :: Interval
+infinity = MkInterval maxBound maxBound maxBound
+
+-- | The smallest possible interval.
+--
+-- >>> negativeInfinity
+-- MkInterval {months = -2147483648, days = -2147483648, microseconds = -9223372036854775808}
+negativeInfinity :: Interval
+negativeInfinity = MkInterval minBound minBound minBound
+
 -- | Creates an interval from a number of microseconds.
 --
 -- >>> fromMicroseconds 1
@@ -110,6 +133,34 @@ fromMilliseconds =
     . (* 1e3)
     . toInteger
 
+-- | Like 'fromMilliseconds' but uses saturating arithmetic rather than
+-- returning 'Maybe'.
+--
+-- >>> fromMillisecondsSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 1000}
+-- >>> fromMillisecondsSaturating 9223372036854776
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromMillisecondsSaturating :: Int.Int64 -> Interval
+fromMillisecondsSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
+    . (* 1e3)
+    . toInteger
+
+-- | Like 'fromMilliseconds' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromMillisecondsLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 1000}
+fromMillisecondsLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 9223372036854775) =>
+  proxy n ->
+  Interval
+fromMillisecondsLiteral =
+  fromMillisecondsSaturating
+    . fromInteger
+    . TypeLits.natVal
+
 -- | Creates an interval from a number of seconds. Returns 'Nothing' if the
 -- interval would overflow.
 --
@@ -123,6 +174,34 @@ fromSeconds =
     . Bits.toIntegralSized
     . (* 1e6)
     . toInteger
+
+-- | Like 'fromSeconds' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromSecondsSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 1000000}
+-- >>> fromSecondsSaturating 9223372036855
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromSecondsSaturating :: Int.Int64 -> Interval
+fromSecondsSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
+    . (* 1e6)
+    . toInteger
+
+-- | Like 'fromSeconds' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromSecondsLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 1000000}
+fromSecondsLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 9223372036854) =>
+  proxy n ->
+  Interval
+fromSecondsLiteral =
+  fromSecondsSaturating
+    . fromInteger
+    . TypeLits.natVal
 
 -- | Creates an interval from a number of minutes. Returns 'Nothing' if the
 -- interval would overflow.
@@ -138,6 +217,34 @@ fromMinutes =
     . (* 60e6)
     . toInteger
 
+-- | Like 'fromMinutes' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromMinutesSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 60000000}
+-- >>> fromMinutesSaturating 153722867281
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromMinutesSaturating :: Int.Int64 -> Interval
+fromMinutesSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
+    . (* 60e6)
+    . toInteger
+
+-- | Like 'fromMinutes' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromMinutesLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 60000000}
+fromMinutesLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 153722867280) =>
+  proxy n ->
+  Interval
+fromMinutesLiteral =
+  fromMinutesSaturating
+    . fromInteger
+    . TypeLits.natVal
+
 -- | Creates an interval from a number of hours. Returns 'Nothing' if the
 -- interval would overflow.
 --
@@ -151,6 +258,34 @@ fromHours =
     . Bits.toIntegralSized
     . (* 3600e6)
     . toInteger
+
+-- | Like 'fromHours' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromHoursSaturating 1
+-- MkInterval {months = 0, days = 0, microseconds = 3600000000}
+-- >>> fromHoursSaturating 2562047789
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+fromHoursSaturating :: Int.Int64 -> Interval
+fromHoursSaturating =
+  fromMicroseconds
+    . toIntegralSaturating
+    . (* 3600e6)
+    . toInteger
+
+-- | Like 'fromHours' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromHoursLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 0, microseconds = 3600000000}
+fromHoursLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 2562047788) =>
+  proxy n ->
+  Interval
+fromHoursLiteral =
+  fromHoursSaturating
+    . fromInteger
+    . TypeLits.natVal
 
 -- | Creates an interval from a number of days.
 --
@@ -173,6 +308,34 @@ fromWeeks =
     . (* 7)
     . toInteger
 
+-- | Like 'fromWeeks' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromWeeksSaturating 1
+-- MkInterval {months = 0, days = 7, microseconds = 0}
+-- >>> fromWeeksSaturating 306783379
+-- MkInterval {months = 0, days = 2147483647, microseconds = 0}
+fromWeeksSaturating :: Int.Int32 -> Interval
+fromWeeksSaturating =
+  fromDays
+    . toIntegralSaturating
+    . (* 7)
+    . toInteger
+
+-- | Like 'fromWeeks' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromWeeksLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 0, days = 7, microseconds = 0}
+fromWeeksLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 306783378) =>
+  proxy n ->
+  Interval
+fromWeeksLiteral =
+  fromWeeksSaturating
+    . fromInteger
+    . TypeLits.natVal
+
 -- | Creates an interval from a number of months.
 --
 -- >>> fromMonths 1
@@ -194,6 +357,53 @@ fromYears =
     . (* 12)
     . toInteger
 
+-- | Like 'fromYears' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromYearsSaturating 1
+-- MkInterval {months = 12, days = 0, microseconds = 0}
+-- >>> fromYearsSaturating 178956971
+-- MkInterval {months = 2147483647, days = 0, microseconds = 0}
+fromYearsSaturating :: Int.Int32 -> Interval
+fromYearsSaturating =
+  fromMonths
+    . toIntegralSaturating
+    . (* 12)
+    . toInteger
+
+-- | Like 'fromYears' but takes a type-level natural number as input.
+-- This is useful for writing literals without risk of overflow.
+--
+-- >>> fromYearsLiteral (Proxy :: Proxy 1)
+-- MkInterval {months = 12, days = 0, microseconds = 0}
+fromYearsLiteral ::
+  (TypeLits.KnownNat n, (TypeLits.<=) n 178956970) =>
+  proxy n ->
+  Interval
+fromYearsLiteral =
+  fromYearsSaturating
+    . fromInteger
+    . TypeLits.natVal
+
+-- | Negates an interval. Returns 'Nothing' if the result would overflow.
+--
+-- >>> negate (MkInterval 1 2 3)
+-- Just (MkInterval {months = -1, days = -2, microseconds = -3})
+-- >>> negate (MkInterval (-2147483648) 0 0)
+-- Nothing
+negate :: Interval -> Maybe Interval
+negate = scale (-1)
+
+-- | Like 'Database.PostgreSQL.Simple.Interval.Unstable.negate' but uses
+-- saturating arithmetic rather than returning 'Maybe'.
+--
+-- >>> negateSaturating (MkInterval 1 2 3)
+-- MkInterval {months = -1, days = -2, microseconds = -3}
+-- >>> negateSaturating (MkInterval (-2147483648) 0 0)
+-- MkInterval {months = 2147483647, days = 0, microseconds = 0}
+negateSaturating :: Interval -> Interval
+negateSaturating = scaleSaturating (-1)
+
 -- | Adds two intervals. Returns 'Nothing' if the result would overflow.
 --
 -- >>> add (fromMonths 1) (fromDays 2)
@@ -208,6 +418,152 @@ add x y =
         <$> Function.on safeAdd months x y
         <*> Function.on safeAdd days x y
         <*> Function.on safeAdd microseconds x y
+
+-- | Like 'add' but uses saturating arithmetic rather than returning 'Maybe'.
+--
+-- >>> addSaturating (fromMonths 1) (fromDays 2)
+-- MkInterval {months = 1, days = 2, microseconds = 0}
+-- >>> addSaturating (fromDays 2147483647) (fromDays 1)
+-- MkInterval {months = 0, days = 2147483647, microseconds = 0}
+addSaturating :: Interval -> Interval -> Interval
+addSaturating x y =
+  let safeAdd :: (Bounded a, Integral a) => a -> a -> a
+      safeAdd n = toIntegralSaturating . Function.on (+) toInteger n
+   in MkInterval
+        (Function.on safeAdd months x y)
+        (Function.on safeAdd days x y)
+        (Function.on safeAdd microseconds x y)
+
+-- | Converts an interval into types from the @time@ library. See 'fromTime'
+-- for the opposite conversion.
+--
+-- >>> intoTime (MkInterval 1 2 3)
+-- (P1M2D,0.000003s)
+intoTime :: Interval -> (Time.CalendarDiffDays, Time.NominalDiffTime)
+intoTime x =
+  ( Time.CalendarDiffDays
+      { Time.cdMonths = toInteger $ months x,
+        Time.cdDays = toInteger $ days x
+      },
+    Time.secondsToNominalDiffTime
+      . realToFrac
+      . intoMicro
+      . toInteger
+      $ microseconds x
+  )
+
+-- | Converts types from the @time@ library into an interval. See 'intoTime'
+-- for the opposite conversion.
+--
+-- >>> fromTime ('Time.CalendarDiffDays' 1 2) 3
+-- Just (MkInterval {months = 1, days = 2, microseconds = 3000000})
+--
+-- Returns 'Nothing' if the result would overflow. See 'fromTimeSaturating' for
+-- a version that uses saturating arithmetic instead.
+--
+-- >>> fromTime mempty 9223372036854.775808
+-- Nothing
+--
+-- Note that this truncates extra precision.
+--
+-- >>> fromTime mempty 0.0000009
+-- Just (MkInterval {months = 0, days = 0, microseconds = 0})
+fromTime :: Time.CalendarDiffDays -> Time.NominalDiffTime -> Maybe Interval
+fromTime x y =
+  MkInterval
+    <$> Bits.toIntegralSized (Time.cdMonths x)
+    <*> Bits.toIntegralSized (Time.cdDays x)
+    <*> Bits.toIntegralSized (fromMicro . realToFrac $ Time.nominalDiffTimeToSeconds y)
+
+-- | Like 'fromTime' but uses saturating arithmetic rather than returning
+-- 'Maybe'.
+--
+-- >>> fromTimeSaturating ('Time.CalendarDiffDays' 1 2) 3
+-- MkInterval {months = 1, days = 2, microseconds = 3000000}
+-- >>> fromTimeSaturating mempty 9223372036854.775808
+-- MkInterval {months = 1, days = 2, microseconds = 9223372036854775807}
+fromTimeSaturating :: Time.CalendarDiffDays -> Time.NominalDiffTime -> Interval
+fromTimeSaturating x y =
+  MkInterval
+    (toIntegralSaturating $ Time.cdMonths x)
+    (toIntegralSaturating $ Time.cdDays x)
+    (toIntegralSaturating . fromMicro . realToFrac $ Time.nominalDiffTimeToSeconds y)
+
+intoMicro :: Integer -> Fixed.Micro
+intoMicro = Fixed.MkFixed
+
+fromMicro :: Fixed.Micro -> Integer
+fromMicro (Fixed.MkFixed x) = x
+
+-- | Scales an interval by the given ratio.
+--
+-- >>> scale 0.5 (MkInterval 2 4 8)
+-- Just (MkInterval {months = 1, days = 2, microseconds = 4})
+-- >>> scale 2 (MkInterval 2 4 8)
+-- Just (MkInterval {months = 4, days = 8, microseconds = 16})
+--
+-- Each component is rounded.
+--
+-- >>> scale 0.4 (MkInterval 0 0 1) -- rounds down
+-- Just (MkInterval {months = 0, days = 0, microseconds = 0})
+-- >>> scale 0.5 (MkInterval 0 0 1) -- rounds half to even
+-- Just (MkInterval {months = 0, days = 0, microseconds = 0})
+-- >>> scale 0.6 (MkInterval 0 0 1) -- rounds up
+-- Just (MkInterval {months = 0, days = 0, microseconds = 1})
+--
+-- Fractional days are converted into microseconds, assuming 24 hours per day.
+--
+-- >>> scale 0.5 (MkInterval 0 1 0)
+-- Just (MkInterval {months = 0, days = 0, microseconds = 43200000000})
+--
+-- Fractional months are converted into days, assuming 30 days per month.
+--
+-- >>> scale 0.5 (MkInterval 1 0 0)
+-- Just (MkInterval {months = 0, days = 15, microseconds = 0})
+--
+-- If this conversion produces fractional days, those are converted into
+-- microseconds.
+--
+-- >>> scale 0.05 (MkInterval 1 0 0)
+-- Just (MkInterval {months = 0, days = 1, microseconds = 43200000000})
+--
+-- Returns 'Nothing' if any component would overflow. See 'scaleSaturating' for
+-- a version that uses saturating arithmetic instead.
+--
+-- >>> scale 2 (MkInterval 0 0 4611686018427387904)
+-- Nothing
+--
+-- Note that due to rounding and conversion, scaling down and then up will not
+-- necessarily return the original interval.
+--
+-- >>> fmap (scale 2) (scale 0.5 (MkInterval 0 0 1))
+-- Just (Just (MkInterval {months = 0, days = 0, microseconds = 0}))
+-- >>> fmap (scale 2) (scale 0.5 (MkInterval 1 0 0))
+-- Just (Just (MkInterval {months = 0, days = 30, microseconds = 0}))
+scale :: Rational -> Interval -> Maybe Interval
+scale r i = do
+  let (m :: Integer, mf) = properFraction . (*) r . toRational $ months i
+  let (d :: Integer, uf) = properFraction . (+) (mf * 30) . (*) r . toRational $ days i
+  let u :: Integer = round . (+) (uf * 86400000000) . (*) r . toRational $ microseconds i
+  MkInterval
+    <$> Bits.toIntegralSized m
+    <*> Bits.toIntegralSized d
+    <*> Bits.toIntegralSized u
+
+-- | Like 'scale' but uses saturating arithmetic rather than returning
+-- 'Nothing' on overflow.
+--
+-- >>> scaleSaturating 2 (MkInterval 0 0 4611686018427387904)
+-- MkInterval {months = 0, days = 0, microseconds = 9223372036854775807}
+scaleSaturating :: Rational -> Interval -> Interval
+scaleSaturating r i =
+  let (m :: Integer, mf) = properFraction . (*) r . toRational $ months i
+      (d :: Integer, uf) = properFraction . (+) (mf * 30) . (*) r . toRational $ days i
+      u :: Integer = round . (+) (uf * 86400000000) . (*) r . toRational $ microseconds i
+   in MkInterval
+        (toIntegralSaturating m)
+        (toIntegralSaturating d)
+        (toIntegralSaturating u)
 
 -- | Renders an interval to a 'Builder'. This always has the same format:
 -- @"\@ A mon B day C hour D min E sec F us"@, where @A@, @B@, @C@, @D@, @E@,
@@ -241,9 +597,7 @@ render x =
         <> " us"
 
 -- | Parses an interval. This is not a general purpose parser. It only supports
--- the formats that PostgreSQL generates. For example, it will fail to parse an
--- interval like @"1 week"@ because PostgreSQL never uses weeks when rendering
--- intervals.
+-- the formats that PostgreSQL generates.
 parse :: A.Parser Interval
 parse =
   -- Start with parsers that have non-empty prefixes, in order to avoid
@@ -262,11 +616,12 @@ parse =
 
 parseInfinities :: A.Parser Interval
 parseInfinities =
-  -- Both `-infinity` and `infinity` are new as of PostgreSQL 17.0.
+  -- `infinity` is new as of PostgreSQL 17.0.
   -- https://www.postgresql.org/message-id/E1r2rB1-005PHm-UL%40gemulon.postgresql.org
   A.choice
-    [ MkInterval minBound minBound minBound <$ "-infinity",
-      MkInterval maxBound maxBound maxBound <$ "infinity"
+    [ negativeInfinity <$ "-infinity",
+      infinity <$ "+infinity",
+      infinity <$ "infinity"
     ]
 
 parseIso8601 :: A.Parser [Component]
@@ -296,6 +651,7 @@ parsePostgresVerbose = do
     flip A.sepBy " " $
       A.choice
         [ Years <$> A.signed A.decimal <* maybePlural " year",
+          Weeks <$> A.signed A.decimal <* maybePlural " week",
           Months <$> A.signed A.decimal <* maybePlural " mon",
           Days <$> A.signed A.decimal <* maybePlural " day",
           Hours <$> A.signed A.decimal <* maybePlural " hour",
@@ -312,6 +668,7 @@ parsePostgres = do
     flip A.sepBy " " $
       A.choice
         [ Years <$> A.signed A.decimal <* maybePlural " year",
+          Weeks <$> A.signed A.decimal <* maybePlural " week",
           Months <$> A.signed A.decimal <* maybePlural " mon",
           Days <$> A.signed A.decimal <* maybePlural " day"
         ]
@@ -348,6 +705,7 @@ maybePlural word = (<>) <$> A.string word <*> A.option "" "s"
 -- are accepted, like years and months.
 data Component
   = Years !Integer
+  | Weeks !Integer
   | Months !Integer
   | Days !Integer
   | Hours !Integer
@@ -361,6 +719,7 @@ data Component
 fromComponent :: Component -> Maybe Interval
 fromComponent c = case c of
   Years y -> fromYears =<< Bits.toIntegralSized y
+  Weeks w -> fromWeeks =<< Bits.toIntegralSized w
   Months m -> fromMonths <$> Bits.toIntegralSized m
   Days d -> fromDays <$> Bits.toIntegralSized d
   Hours h -> fromHours =<< Bits.toIntegralSized h
@@ -382,6 +741,7 @@ fromComponents =
 negateComponent :: Component -> Component
 negateComponent c = case c of
   Years y -> Years (-y)
+  Weeks w -> Weeks (-w)
   Months m -> Months (-m)
   Days d -> Days (-d)
   Hours h -> Hours (-h)
@@ -391,3 +751,10 @@ negateComponent c = case c of
 
 negateComponentsWhen :: (Functor f) => Bool -> f Component -> f Component
 negateComponentsWhen p = if p then fmap negateComponent else id
+
+toIntegralSaturating :: forall a b. (Integral a, Integral b, Bounded b) => a -> b
+toIntegralSaturating x = case toInteger x of
+  y
+    | let lo = minBound :: b, y < toInteger lo -> lo
+    | let hi = maxBound :: b, y > toInteger hi -> hi
+    | otherwise -> fromInteger y
