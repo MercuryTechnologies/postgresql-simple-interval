@@ -144,11 +144,11 @@ jobs:
             ghc: '9.12'
             postgres: 16
             os: ubuntu
-          - documentation: false
+          - documentation: true
             ghc: '9.12'
             postgres: 17
             os: ubuntu
-          - documentation: true
+          - documentation: false
             ghc: '9.14'
             postgres: 17
             os: ubuntu
@@ -164,7 +164,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: postgresql-simple-interval-${{ github.sha }}-ubuntu-9.14-17
+          name: postgresql-simple-interval-${{ github.sha }}-ubuntu-9.12-17
       - run: tar --extract --file artifact.tar --verbose
       - uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
