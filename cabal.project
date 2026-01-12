@@ -1,4 +1,19 @@
 packages: .
 allow-newer:
-  postgresql-simple:base
+  , aeson:containers
+  , aeson:template-haskell
+  , http-api-data:base
+  , http-api-data:containers
+  , indexed-traversable-instances:base
+  , indexed-traversable:base
+  , indexed-traversable:containers
+  , persistent:template-haskell
+  , postgresql-libpq:base
+  , postgresql-simple:base
+  , postgresql-simple:containers
   , postgresql-simple:template-haskell
+  , semialign:base
+  , semialign:containers
+  , these:base
+  , time-compat:base
+  , uuid-types:template-haskell

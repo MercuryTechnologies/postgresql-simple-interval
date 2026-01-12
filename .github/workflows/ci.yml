@@ -212,6 +212,10 @@ jobs:
             postgres: 17
             os: ubuntu
           - documentation: false
+            ghc: '9.14'
+            postgres: 17
+            os: ubuntu
+          - documentation: false
             ghc: '9.12'
             postgres: 17
             os: windows
