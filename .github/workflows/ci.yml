@@ -63,8 +63,69 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
+      # Set up PostgreSQL before cabal configure on Windows
+      - if: runner.os == 'Windows'
+        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
+        with:
+          postgres-version: ${{ matrix.postgres }}
+      # On Windows, install pkgconf and configure PostgreSQL paths
+      # The Strawberry Perl pkg-config is broken, and postgresql-libpq-configure fails
+      # So we use pkgconf + the use-pkg-config flag for postgresql-libpq
+      - if: runner.os == 'Windows'
+        name: Configure Windows PostgreSQL paths
+        shell: pwsh
+        run: |
+          # Install pkgconf via pacman in MSYS2
+          & "$env:GHCUP_MSYS2\usr\bin\bash.exe" -lc "pacman -S --noconfirm mingw-w64-x86_64-pkgconf"
+
+          # Remove Strawberry Perl from PATH to avoid its broken pkg-config
+          $newPath = ($env:PATH.Split(';') | Where-Object { $_ -notlike '*Strawberry*' }) -join ';'
+
+          # Add MSYS2 mingw64 bin to PATH for pkgconf
+          $msys2Bin = "$env:GHCUP_MSYS2\mingw64\bin"
+          $newPath = "$msys2Bin;$newPath"
+
+          # Add PostgreSQL bin/lib to PATH for DLLs at runtime
+          $pgBin = "C:\Program Files\PostgreSQL\${{ matrix.postgres }}\bin"
+          $pgLib = "C:\Program Files\PostgreSQL\${{ matrix.postgres }}\lib"
+          $pgInclude = "C:\Program Files\PostgreSQL\${{ matrix.postgres }}\include"
+          $newPath = "$pgBin;$pgLib;$newPath"
+
+          echo "PATH=$newPath" >> $env:GITHUB_ENV
+          echo "$pgBin" >> $env:GITHUB_PATH
+          echo "$pgLib" >> $env:GITHUB_PATH
+          echo "$msys2Bin" >> $env:GITHUB_PATH
+
+          # Create a pkg-config .pc file for libpq since Windows PostgreSQL doesn't ship one
+          $pcContent = @"
+          prefix=C:/Program Files/PostgreSQL/${{ matrix.postgres }}
+          exec_prefix=`${prefix}
+          libdir=`${exec_prefix}/lib
+          includedir=`${prefix}/include
+
+          Name: libpq
+          Description: PostgreSQL libpq library
+          Version: ${{ matrix.postgres }}
+          Libs: -L`${libdir} -lpq
+          Cflags: -I`${includedir}
+          "@
+
+          $pcDir = "$env:GHCUP_MSYS2\mingw64\lib\pkgconfig"
+          $pcContent | Out-File -FilePath "$pcDir\libpq.pc" -Encoding ASCII
+
+          # Set PKG_CONFIG_PATH
+          echo "PKG_CONFIG_PATH=$pcDir" >> $env:GITHUB_ENV
+
+          # Set PQ_LIB_DIR as fallback
+          echo "PQ_LIB_DIR=$pgLib" >> $env:GITHUB_ENV
       - run: echo DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
-      - run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
+        shell: bash
+      # Configure cabal - use pkg-config flag on Windows to avoid broken configure script
+      - if: runner.os == 'Windows'
+        name: Cabal configure (Windows)
+        run: cabal configure --enable-tests --flags=pedantic --constraint="postgresql-libpq +use-pkg-config" --jobs
+      - if: runner.os != 'Windows'
+        run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
@@ -78,7 +139,9 @@ jobs:
           path: ~/.local/state/cabal
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
       - run: cabal build --only-download
-      - uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
+      # Set up PostgreSQL on non-Windows after download (to minimize wait time)
+      - if: runner.os != 'Windows'
+        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
         with:
           postgres-version: ${{ matrix.postgres }}
       - run: cabal build --only-dependencies
