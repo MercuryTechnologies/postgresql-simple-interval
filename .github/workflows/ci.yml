@@ -98,9 +98,10 @@ jobs:
       - run: echo DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
         shell: bash
       # Configure cabal - use pkg-config flag on Windows to use MSYS2's libpq
+      # Also use a short builddir on Windows to avoid MAX_PATH (260 char) limitations
       - if: runner.os == 'Windows'
         name: Cabal configure (Windows)
-        run: cabal configure --enable-tests --flags=pedantic --constraint="postgresql-libpq +use-pkg-config" --jobs
+        run: cabal configure --builddir=C:/b --enable-tests --flags=pedantic --constraint="postgresql-libpq +use-pkg-config" --jobs
       - if: runner.os != 'Windows'
         run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
       - run: cat cabal.project.local
@@ -115,14 +116,24 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
           path: ~/.local/state/cabal
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
-      - run: cabal build --only-download
+      # Use short builddir on Windows to avoid MAX_PATH limitations
+      - if: runner.os == 'Windows'
+        run: cabal build --builddir=C:/b --only-download
+      - if: runner.os != 'Windows'
+        run: cabal build --only-download
       # Set up PostgreSQL on non-Windows after download (to minimize wait time)
       - if: runner.os != 'Windows'
         uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
         with:
           postgres-version: ${{ matrix.postgres }}
-      - run: cabal build --only-dependencies
-      - run: cabal build
+      - if: runner.os == 'Windows'
+        run: cabal build --builddir=C:/b --only-dependencies
+      - if: runner.os != 'Windows'
+        run: cabal build --only-dependencies
+      - if: runner.os == 'Windows'
+        run: cabal build --builddir=C:/b
+      - if: runner.os != 'Windows'
+        run: cabal build
       - if: ${{ env.DOCUMENTATION }}
         run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
       - run: tar --create --file artifact.tar --verbose artifact
@@ -130,7 +141,12 @@ jobs:
         with:
           name: postgresql-simple-interval-${{ github.sha }}-${{ matrix.os }}-${{ matrix.ghc }}-${{ matrix.postgres }}
           path: artifact.tar
-      - env:
+      - if: runner.os == 'Windows'
+        env:
+          PGPASSWORD: postgres
+        run: cabal run --builddir=C:/b -- postgresql-simple-interval-test-suite --randomize
+      - if: runner.os != 'Windows'
+        env:
           PGPASSWORD: postgres
         run: cabal run -- postgresql-simple-interval-test-suite --randomize
     strategy:
