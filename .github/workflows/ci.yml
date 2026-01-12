@@ -98,7 +98,8 @@ jobs:
       - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
-          path: ~/.local/state/cabal
+          path: |
+            ${{ runner.os == 'Windows' && '~\AppData\Roaming\cabal' || '~/.local/state/cabal' }}
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
       - run: cabal build --only-download
       - run: cabal build --only-dependencies
