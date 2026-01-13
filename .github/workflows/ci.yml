@@ -87,7 +87,7 @@ jobs:
           echo "$pgBin" >> $env:GITHUB_PATH
           echo "PKG_CONFIG_PATH=$env:GHCUP_MSYS2\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
 
-      - run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic $WINDOWS_FLAGS --jobs
+      - run: cabal configure --builddir=$BUILDDIR $DOCUMENTATION --enable-tests --flags=pedantic $WINDOWS_FLAGS --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
