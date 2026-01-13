@@ -87,7 +87,7 @@ jobs:
           echo "$pgBin" >> $env:GITHUB_PATH
           echo "PKG_CONFIG_PATH=$env:GHCUP_MSYS2\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
 
-      - run: cabal configure --builddir=$BUILDDIR $DOCUMENTATION --enable-tests --flags=pedantic $WINDOWS_FLAGS --jobs
+      - run: cabal configure --builddir=${{ env.BUILDDIR }} ${{ env.DOCUMENTATION }} --enable-tests --flags=pedantic ${{ env.WINDOWS_FLAGS }} --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
@@ -101,11 +101,11 @@ jobs:
           path: |
             ${{ matrix.os == 'windows' && '~\AppData\Roaming\cabal' || '~/.local/state/cabal' }}
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
-      - run: cabal --builddir=$BUILDDIR build --only-download
-      - run: cabal --builddir=$BUILDDIR build --only-dependencies
-      - run: cabal --builddir=$BUILDDIR build
+      - run: cabal --builddir=${{ env.BUILDDIR }} build --only-download
+      - run: cabal --builddir=${{ env.BUILDDIR }} build --only-dependencies
+      - run: cabal --builddir=${{ env.BUILDDIR }} build
       - if: ${{ matrix.documentation }}
-        run: cp $BUILDDIR/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
+        run: cp ${{ env.BUILDDIR }}/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
       - run: tar --create --file artifact.tar --verbose artifact
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -113,7 +113,7 @@ jobs:
           path: artifact.tar
       - env:
           PGPASSWORD: postgres
-        run: cabal --builddir=$BUILDDIR run -- postgresql-simple-interval-test-suite --randomize
+        run: cabal --builddir=${{ env.BUILDDIR }} run -- postgresql-simple-interval-test-suite --randomize
     strategy:
       matrix:
         include:
