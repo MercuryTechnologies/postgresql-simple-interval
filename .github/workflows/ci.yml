@@ -56,9 +56,9 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     env:
       # Use short builddir on Windows to avoid MAX_PATH (260 char) limitations
-      BUILDDIR: ${{ runner.os == 'Windows' && 'C:/b' || 'dist-newstyle' }}
+      BUILDDIR: ${{ matrix.os == 'windows' && 'C:/b' || 'dist-newstyle' }}
       DOCUMENTATION: ${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }}
-      WINDOWS_FLAGS: ${{ runner.os == 'Windows' && '--constraint="postgresql-libpq +use-pkg-config"' || '' }}
+      WINDOWS_FLAGS: ${{ matrix.os == 'windows' && '--constraint="postgresql-libpq +use-pkg-config"' || '' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: mkdir artifact
@@ -74,7 +74,7 @@ jobs:
 
       # Windows: Install MSYS2's libpq which provides MinGW-compatible libraries
       # The Windows PostgreSQL installer provides MSVC libraries which don't link with GHC's MinGW toolchain
-      - if: runner.os == 'Windows'
+      - if: matrix.os == 'windows'
         name: Install MSYS2 PostgreSQL client library
         shell: pwsh
         run: |
@@ -99,7 +99,7 @@ jobs:
         with:
           key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
           path: |
-            ${{ runner.os == 'Windows' && '~\AppData\Roaming\cabal' || '~/.local/state/cabal' }}
+            ${{ matrix.os == 'windows' && '~\AppData\Roaming\cabal' || '~/.local/state/cabal' }}
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
       - run: cabal --builddir=$BUILDDIR build --only-download
       - run: cabal --builddir=$BUILDDIR build --only-dependencies
