@@ -54,6 +54,11 @@ jobs:
     name: GHC ${{ matrix.ghc }} on ${{ matrix.os }} with PostgreSQL ${{ matrix.postgres }}
     needs: meta
     runs-on: ${{ matrix.os }}-latest
+    env:
+      # Use short builddir on Windows to avoid MAX_PATH (260 char) limitations
+      BUILDDIR: ${{ matrix.os == 'windows' && 'C:/b' || 'dist-newstyle' }}
+      DOCUMENTATION: ${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }}
+      WINDOWS_FLAGS: ${{ matrix.os == 'windows' && '--constraint="postgresql-libpq +use-pkg-config"' || '' }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: mkdir artifact
@@ -63,8 +68,26 @@ jobs:
           cabal: latest
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
-      - run: echo DOCUMENTATION=${{ matrix.documentation && '--enable-documentation --haddock-for-hackage' || '' }} >> $GITHUB_ENV
-      - run: cabal configure $DOCUMENTATION --enable-tests --flags=pedantic --jobs
+      - uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
+        with:
+          postgres-version: ${{ matrix.postgres }}
+
+      # Windows: Install MSYS2's libpq which provides MinGW-compatible libraries
+      # The Windows PostgreSQL installer provides MSVC libraries which don't link with GHC's MinGW toolchain
+      - if: matrix.os == 'windows'
+        name: Install MSYS2 PostgreSQL client library
+        shell: pwsh
+        run: |
+          & "$env:GHCUP_MSYS2\usr\bin\bash.exe" -lc "pacman -S --noconfirm mingw-w64-x86_64-postgresql mingw-w64-x86_64-pkgconf"
+          $newPath = ($env:PATH.Split(';') | Where-Object { $_ -notlike '*Strawberry*' }) -join ';'
+          $msys2Bin = "$env:GHCUP_MSYS2\mingw64\bin"
+          $pgBin = "C:\Program Files\PostgreSQL\${{ matrix.postgres }}\bin"
+          echo "PATH=$msys2Bin;$pgBin;$newPath" >> $env:GITHUB_ENV
+          echo "$msys2Bin" >> $env:GITHUB_PATH
+          echo "$pgBin" >> $env:GITHUB_PATH
+          echo "PKG_CONFIG_PATH=$env:GHCUP_MSYS2\mingw64\lib\pkgconfig" >> $env:GITHUB_ENV
+
+      - run: cabal configure ${{ env.DOCUMENTATION }} --enable-tests --flags=pedantic ${{ env.WINDOWS_FLAGS }} --jobs
       - run: cat cabal.project.local
       - run: cp cabal.project.local artifact
       - run: cabal update
@@ -75,16 +98,14 @@ jobs:
       - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         with:
           key: ${{ matrix.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
-          path: ~/.local/state/cabal
+          path: |
+            ${{ matrix.os == 'windows' && '~\AppData\Roaming\cabal' || '~/.local/state/cabal' }}
           restore-keys: ${{ matrix.os }}-${{ matrix.ghc }}-
-      - run: cabal build --only-download
-      - uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee # v8
-        with:
-          postgres-version: ${{ matrix.postgres }}
-      - run: cabal build --only-dependencies
-      - run: cabal build
-      - if: ${{ env.DOCUMENTATION }}
-        run: cp dist-newstyle/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
+      - run: cabal --builddir=${{ env.BUILDDIR }} build --only-download
+      - run: cabal --builddir=${{ env.BUILDDIR }} build --only-dependencies
+      - run: cabal --builddir=${{ env.BUILDDIR }} build
+      - if: ${{ matrix.documentation }}
+        run: cp ${{ env.BUILDDIR }}/${{ needs.meta.outputs.name }}-${{ needs.meta.outputs.version }}-docs.tar.gz artifact
       - run: tar --create --file artifact.tar --verbose artifact
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
@@ -92,7 +113,7 @@ jobs:
           path: artifact.tar
       - env:
           PGPASSWORD: postgres
-        run: cabal run -- postgresql-simple-interval-test-suite --randomize
+        run: cabal --builddir=${{ env.BUILDDIR }} run -- postgresql-simple-interval-test-suite --randomize
     strategy:
       matrix:
         include:
@@ -152,6 +173,10 @@ jobs:
             ghc: '9.14'
             postgres: 17
             os: ubuntu
+          - documentation: false
+            ghc: '9.12'
+            postgres: 17
+            os: windows
   release:
     if: ${{ github.event_name == 'release' }}
     name: Release
