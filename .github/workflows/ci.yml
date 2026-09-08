@@ -113,7 +113,7 @@ jobs:
           path: artifact.tar
       - env:
           PGPASSWORD: postgres
-        run: cabal --builddir=${{ env.BUILDDIR }} run -- postgresql-simple-interval-test-suite --randomize
+        run: cabal --builddir=${{ env.BUILDDIR }} run postgresql-simple-interval-test-suite -- --randomize
     strategy:
       matrix:
         include:
