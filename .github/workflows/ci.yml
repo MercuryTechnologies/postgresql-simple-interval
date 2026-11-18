@@ -67,10 +67,6 @@ jobs:
         with:
           ghc: ${{ matrix.ghc }}
           cabal: latest
-      # The GHC 9.2 and 9.4 bindists that GHCup installs link with gold, which
-      # is no longer included with binutils on Ubuntu 26.04.
-      - if: matrix.os == 'ubuntu' && (matrix.ghc == '9.2' || matrix.ghc == '9.4')
-        run: sudo apt-get install --yes binutils-gold
       - run: ghc-pkg list
       - run: cabal sdist --output-dir artifact
       - uses: ikalnytskyi/action-setup-postgres@325155bfd7807b2a21ac9c2c7bb9b9a6eacc44df # v9
@@ -127,26 +123,6 @@ jobs:
             ghc: '9.12'
             postgres: 17
             os: macos
-          - documentation: false
-            ghc: '8.8'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '8.10'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '9.0'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '9.2'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '9.4'
-            postgres: 17
-            os: ubuntu
           - documentation: false
             ghc: '9.6'
             postgres: 17
