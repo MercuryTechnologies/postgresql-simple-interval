@@ -116,32 +116,13 @@ jobs:
           PGPASSWORD: postgres
         run: cabal --builddir=${{ env.BUILDDIR }} run postgresql-simple-interval-test-suite -- --randomize
     strategy:
+      fail-fast: false
       matrix:
         include:
           - documentation: false
             ghc: '9.12'
             postgres: 17
             os: macos
-          - documentation: false
-            ghc: '8.8'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '8.10'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '9.0'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '9.2'
-            postgres: 17
-            os: ubuntu
-          - documentation: false
-            ghc: '9.4'
-            postgres: 17
-            os: ubuntu
           - documentation: false
             ghc: '9.6'
             postgres: 17
