@@ -28,7 +28,7 @@ common library
     base >=4.18 && <4.23,
     bytestring >=0.11.4 && <0.13,
     postgresql-simple ^>=0.7,
-    time >=1.12.2 && <1.16,
+    time >=1.12.2 && <1.17,
 
   default-language: Haskell2010
   ghc-options:

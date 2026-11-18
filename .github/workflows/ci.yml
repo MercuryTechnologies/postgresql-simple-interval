@@ -143,6 +143,10 @@ jobs:
             ghc: '9.12'
             postgres: 16
             os: ubuntu
+          - documentation: false
+            ghc: '9.12'
+            postgres: 18
+            os: ubuntu
           - documentation: true
             ghc: '9.12'
             postgres: 17
