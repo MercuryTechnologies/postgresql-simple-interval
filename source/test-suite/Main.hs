@@ -3,7 +3,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
-import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
 import qualified Data.Attoparsec.ByteString.Char8 as Attoparsec
 import qualified Data.ByteString as ByteString
@@ -12,9 +11,7 @@ import qualified Data.ByteString.Lazy as LazyByteString
 import qualified Data.Int as Int
 import qualified Data.Proxy as Proxy
 import qualified Data.Time as Time
-import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified Database.PostgreSQL.Simple as Postgres
-import qualified Database.PostgreSQL.Simple.Internal as Postgres
 import qualified Database.PostgreSQL.Simple.Interval.Unstable as I
 import qualified Database.PostgreSQL.Simple.ToField as Postgres
 import qualified Test.Hspec as H
@@ -457,16 +454,10 @@ spec = H.describe "Database.PostgreSQL.Simple.Interval" $ do
           H.it ("round trips " <> show (field example)) $ do
             Postgres.withConnect Postgres.defaultConnectInfo $ \connection -> do
               let interval = exampleInterval example
-              result <- Exception.try . Postgres.withTransaction connection $ do
+              actual <- Postgres.withTransaction connection $ do
                 Monad.void $ Postgres.execute connection "set local intervalstyle = ?" [style]
                 Postgres.query connection "select ?" [interval]
-              case result of
-                Right actual -> actual `H.shouldBe` [Postgres.Only interval]
-                Left somePostgresqlException -> do
-                  version <- Postgres.withConnection connection Pq.serverVersion
-                  if version < 150000
-                    then H.pendingWith $ "interval parsing broken with PostgreSQL version " <> show version
-                    else Exception.throwIO (somePostgresqlException :: Postgres.SomePostgreSqlException)
+              actual `H.shouldBe` [Postgres.Only interval]
 
 data IntervalStyle
   = Iso8601
