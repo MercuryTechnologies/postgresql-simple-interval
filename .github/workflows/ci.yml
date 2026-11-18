@@ -116,6 +116,7 @@ jobs:
           PGPASSWORD: postgres
         run: cabal --builddir=${{ env.BUILDDIR }} run postgresql-simple-interval-test-suite -- --randomize
     strategy:
+      fail-fast: false
       matrix:
         include:
           - documentation: false
