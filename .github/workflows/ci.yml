@@ -155,10 +155,6 @@ jobs:
             os: ubuntu
           - documentation: false
             ghc: '9.12'
-            postgres: 14
-            os: ubuntu
-          - documentation: false
-            ghc: '9.12'
             postgres: 15
             os: ubuntu
           - documentation: false
